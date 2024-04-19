@@ -8,14 +8,22 @@
 #include <getopt.h>
 #include <string.h>
 #include <pcap/pcap.h>
+#include <arpa/inet.h>
+#include <netinet/ip.h>
+#include <netinet/udp.h>
+#include <netinet/tcp.h>
+#include <netinet/ether.h>
+#include <netinet/ip6.h>
+#include <netinet/ip_icmp.h>
+#include <time.h>
 
 typedef struct INFO {
     char* interface;
     bool protocol_tcp;
     bool protocol_udp;
-    int port;
-    int port_source;
-    int port_destination;
+    char* port;
+    char* port_source;
+    char* port_destination;
     bool icmp_4;
     bool icmp_6;
     bool arp;
@@ -43,13 +51,22 @@ parsed_info* parse_args(int argc, char* argv[]);
 void print_help();
 
 /**
- * @brief Prints out error occured in argparser and exits program
+ * @brief Prints out error occured in argparser and deallocs memory 
  * 
- * @param info pointer to allocated  structure to be deleted
+ * @param info pointer to allocated structure to be deleted
  * @param message message to be printed
  */
-void argparse_error_exit(parsed_info* info, const char* message);
+void argparse_error_dealloc(parsed_info* info, const char* message);
 
+/**
+ * @brief Checks if port is in range
+ * 
+ * @param port port number
+ * @param info structure to be deallocated in case of error
+ * @return true if port number is valid
+ * @return false if port numbet isnt valid
+ */
+bool check_port_range(int port, parsed_info* info);
 
 
 #endif
