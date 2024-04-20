@@ -224,6 +224,9 @@ void print_packet_hex_ascii(const u_char* packet, int packet_length){
                     if(!isprint(character)){
                         character = '.';
                     }
+                    if(j == (i - HEX_PRINT_LEN/2)){
+                        printf(" ");
+                    }
                     printf("%c", character);
                 }
             printf("\n");
@@ -240,11 +243,16 @@ void print_packet_hex_ascii(const u_char* packet, int packet_length){
             printf("   ");
         }
         printf(" ");
+        int ascii_cnt = 0;
         for (int j = i - ascii_not_printed; j < i; j++) {
             unsigned char character = packet[j];
             if(!isprint(character)){
                 character = '.';
             }
+            if(ascii_cnt == 8){
+                printf(" ");
+            }
+            ascii_cnt++;
             printf("%c", character);
         }
     }
@@ -278,16 +286,16 @@ void print_igmp_details(const u_char* packet){
     switch (igmp_header->igmp_type){
     //all message types taken from igmp.h
     case IGMP_MEMBERSHIP_QUERY:
-        printf("igmp type: MEMBERSHIP_QUERY\n");
+        printf("igmp type: membership query\n");
         break;
     case IGMP_V1_MEMBERSHIP_REPORT:
-        printf("igmp type: V1_MEMBERSHIP_REPORT\n");
+        printf("igmp type: membership report version 1\n");
         break;
     case IGMP_V2_MEMBERSHIP_REPORT:
-        printf("igmp type: V2_MEMBERSHIP_REPORT\n");
+        printf("igmp type: membership report version 2\n");
         break;
     case IGMP_V2_LEAVE_GROUP:
-        printf("igmp type: V2_LEAVE_GROUP\n");
+        printf("igmp type: leave-group message version 2\n");
         break;
     case IGMP_DVMRP:
         printf("igmp type: DVMRP routing message\n");
@@ -429,6 +437,7 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
     default:
         break;
     }
+    packet -= ETH_HEADER_LEN; //ETH header will be printed
     print_packet_hex_ascii(packet, pkthdr->caplen);
     
 }
