@@ -130,14 +130,14 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
         if(sniffer_filter[0] != '\0'){
             strcat(sniffer_filter, " or ");
         }
-        strcat(sniffer_filter, "icmp6 and ip6[40] == 130");
+        strcat(sniffer_filter, "icmp6 and (ip6[40] == 130 or ip6[40] == 131 or ip6[40] == 132 or ip6[40] == 143)");
     }
 
     if(info->ndp){
         if(sniffer_filter[0] != '\0'){
             strcat(sniffer_filter, " or ");
         }
-        strcat(sniffer_filter, "icmp6 and (ip6[40] == 135 or ip6[40] == 136)");
+        strcat(sniffer_filter, "icmp6 and (ip6[40] == 133 or ip6[40] == 135 or ip6[40] == 135  or ip6[40] == 136 or ip6[40] == 137)");
     }
 
     printf("Filter: %s\n", sniffer_filter);
@@ -252,23 +252,63 @@ void print_packet_hex_ascii(const u_char* packet, int packet_length){
 
 
 void print_arp_details(const u_char* packet){
-    struct ether_arp* arp_struct = (struct ether_arp*) packet;
+    struct ether_arp* arp_header = (struct ether_arp*) packet;
     char sender_ip[INET_ADDRSTRLEN];
     char target_ip[INET_ADDRSTRLEN];
     //Convert ARP protocol addresses to readable format
-    inet_ntop(AF_INET, arp_struct->arp_spa, sender_ip, INET_ADDRSTRLEN);
-    inet_ntop(AF_INET, arp_struct->arp_tpa, target_ip, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, arp_header->arp_spa, sender_ip, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, arp_header->arp_tpa, target_ip, INET_ADDRSTRLEN);
 
     //Print addresses
     printf("sender protocol address: %s\n", sender_ip);
     printf("target protocol address: %s\n", target_ip);
 
     //Print type of arp op
-    if(ntohs(arp_struct->ea_hdr.ar_op) == ARPOP_REPLY){
+    if(ntohs(arp_header->ea_hdr.ar_op) == ARPOP_REPLY){
         printf("ARP operation: REPLY\n");
     } else {
         printf("ARP operation: REQUEST\n");
     }
+}
+
+void print_igmp_details(struct ip* ip_header){
+    struct igmp* igmp_header = (struct igmp *)((unsigned char*)ip_header + ip_header->ip_hl * 4);
+    switch (igmp_header->igmp_type)
+    {
+    //all message types taken from igmp.h
+    case IGMP_MEMBERSHIP_QUERY:
+        printf("igmp type: MEMBERSHIP_QUERY\n");
+        break;
+    case IGMP_V1_MEMBERSHIP_REPORT:
+        printf("igmp type: V1_MEMBERSHIP_REPORT\n");
+        break;
+    case IGMP_V2_MEMBERSHIP_REPORT:
+        printf("igmp type: V2_MEMBERSHIP_REPORT\n");
+        break;
+    case IGMP_V2_LEAVE_GROUP:
+        printf("igmp type: V2_LEAVE_GROUP\n");
+        break;
+    case IGMP_DVMRP:
+        printf("igmp type: DVMRP routing message\n");
+        break;
+    case IGMP_PIM:
+        printf("igmp type: PIM routing message\n");
+        break;
+    case IGMP_TRACE:
+        printf("igmp type: TRACE\n");
+        break;
+    case IGMP_MTRACE_RESP:
+        printf("igmp type: traceroute resp. (to sender)\n");
+        break;
+    case IGMP_MTRACE:
+        printf("igmp type: mcast traceroute messages\n");
+        break;
+    default:
+        printf("igmpo type: unknown\n");
+        break;
+    }
+    printf("igmp routing code: %d\n", igmp_header->igmp_code);
+    printf("igmp group address: %s\n", inet_ntoa(igmp_header->igmp_group));
 }
 
 void print_ip_addresses(const u_char* packet, int ip_version){
@@ -310,6 +350,9 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
             printf("Captured a UDP packet\n");
         } else if(ip_header->ip_p == IPPROTO_ICMP) {
             
+        } else if(ip_header->ip_p == IPPROTO_IGMP){
+            print_ip_addresses(packet, IPV4);
+            print_igmp_details(ip_header);
         }
         break;
     

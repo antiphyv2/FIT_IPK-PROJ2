@@ -11,7 +11,7 @@ void argparse_error_dealloc(parsed_info* info, const char* message){
     }
 }
 
-bool check_port_range(int port, parsed_info* info){
+bool check_port_range(int port){
     if(port < 0 || port > 65535){
         return false;
     }
@@ -29,6 +29,7 @@ struct option long_args[] = {
     {"icmp6", no_argument, 0, 'c'},
     {"igmp", no_argument, 0, 'd'},
     {"mld", no_argument, 0, 'e'},
+    {"ndp", no_argument, 0, 'f'},
     {0, 0, 0, 0}
 };
 
@@ -77,10 +78,9 @@ parsed_info* parse_args(int argc, char* argv[]){
             }
             
             port_set = true;
-            info->apply_filter = true;
 
             int temp_port = (int) strtol(optarg, &end_ptr, 10);
-            if(!check_port_range(temp_port, info)){
+            if(!check_port_range(temp_port)){
                 argparse_error_dealloc(info, "ERR: [ARGPARSER] Invalid number in port. Range is 0 - 65535.\n");
                 return NULL;
             }
@@ -106,7 +106,6 @@ parsed_info* parse_args(int argc, char* argv[]){
                 return NULL;
             }
             info->protocol_udp = true;
-            info->apply_filter = true;
             break;
         case 't':
             if(info->protocol_tcp){
@@ -114,7 +113,6 @@ parsed_info* parse_args(int argc, char* argv[]){
                 return NULL;
             }
             info->protocol_tcp = true;
-            info->apply_filter = true;
             break;
         case 'h':
             print_help();
@@ -122,23 +120,21 @@ parsed_info* parse_args(int argc, char* argv[]){
             exit(EXIT_SUCCESS);
         case 'a':
             info->arp = true;
-            info->apply_filter = true;
             break;
         case 'b':
             info->icmp_4 = true;
-            info->apply_filter = true;
             break;
         case 'c':
             info->icmp_6 = true;
-            info->apply_filter = true;
             break;
         case 'd':
             info->igmp = true;
-            info->apply_filter = true;
             break;
         case 'e':
             info->mld = true;
-            info->apply_filter = true;
+            break;
+        case 'f':
+            info->ndp = true;
             break;
         case '?':
             argparse_error_dealloc(info, "ERR: [ARGPARSER] Unrecognized argument or empty value.\n");

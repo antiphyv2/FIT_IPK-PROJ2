@@ -15,6 +15,7 @@
 #include <netinet/ether.h>
 #include <netinet/ip6.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/igmp.h>
 #include <time.h>
 #include <ctype.h>
 
@@ -32,8 +33,6 @@ typedef struct INFO {
     bool igmp;
     bool mld;
     int packets_to_display;
-    bool apply_filter;
-
 } parsed_info;
 
 /**
@@ -63,11 +62,10 @@ void argparse_error_dealloc(parsed_info* info, const char* message);
  * @brief Checks if port is in range
  * 
  * @param port port number
- * @param info structure to be deallocated in case of error
  * @return true if port number is valid
  * @return false if port numbet isnt valid
  */
-bool check_port_range(int port, parsed_info* info);
+bool check_port_range(int port);
 
 
 #endif
