@@ -3,7 +3,12 @@
 #include "argparser.h"
 
 #define ETH_HEADER_LEN 14 //Size of eth header
-#define MAC_ADDRESS_SIZE 18 //Size needed to print MAC adresses in hex format
+#define IPV4 4
+#define IPV6 6
+#define TCP_PROTOCOL 1
+#define UDP_PROTOCOL 0
+#define MAC_ADDR_LEN 6
+#define HEX_PRINT_LEN 16
 
 /**
  * @brief Prints out all available network interfaces
@@ -64,5 +69,32 @@ void print_packet_time(const struct pcap_pkthdr* pkthdr);
  * @param eth_header pointer to the eth header with appropriate information
  */
 void print_mac_addresses(struct ether_header* eth_header);
+
+
+/**
+ * @brief Print destination and source port of the packet
+ * 
+ * @param ip_header Pointer to the ip header
+ * @param protocol 1 if protocol is TCP, 0 if UDP
+ * @param ip_version 4 if ip protocol is IPV4, IPV6 otherwise
+ */
+void print_packet_ports(struct ip* ip_header, int protocol, int ip_version);
+
+
+/**
+ * @brief Prints ARP protocol addresses and operation
+ * 
+ * @param packet Pointer to the packet
+ */
+void print_arp_details(const u_char* packet);
+
+
+/**
+ * @brief Prints packet byte offset, hexadecimal and ascii representation
+ * 
+ * @param packet Pointer to the packet
+ * @param packet_length Packet length
+ */
+void print_packet_hex_ascii(const u_char* packet, int packet_length);
 
 #endif

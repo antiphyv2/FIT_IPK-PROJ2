@@ -16,6 +16,7 @@
 #include <netinet/ip6.h>
 #include <netinet/ip_icmp.h>
 #include <time.h>
+#include <ctype.h>
 
 typedef struct INFO {
     char* interface;
