@@ -194,8 +194,9 @@ void print_mac_addresses(struct ether_header* eth_header){
     printf("dst MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", address[0], address[1], address[2], address[3], address[4], address[5]);
 }
 
-void print_packet_ports(struct ip* ip_header, int protocol, int ip_version){
+void print_packet_ports(const u_char* packet, int protocol, int ip_version){
     if(ip_version == IPV4){
+        struct ip* ip_header = (struct ip*) packet;
         if(protocol == TCP_PROTOCOL){
             struct tcphdr* tcp_header = (struct tcphdr *) ((unsigned char*)ip_header + ip_header->ip_hl * 4); //Multiply by 4 to convert it to bytes (length in 32bit words)
             printf("src port: %d\n", ntohs(tcp_header->th_sport));
@@ -271,10 +272,10 @@ void print_arp_details(const u_char* packet){
     }
 }
 
-void print_igmp_details(struct ip* ip_header){
+void print_igmp_details(const u_char* packet){
+    struct ip* ip_header = (struct ip*) packet;
     struct igmp* igmp_header = (struct igmp *)((unsigned char*)ip_header + ip_header->ip_hl * 4);
-    switch (igmp_header->igmp_type)
-    {
+    switch (igmp_header->igmp_type){
     //all message types taken from igmp.h
     case IGMP_MEMBERSHIP_QUERY:
         printf("igmp type: MEMBERSHIP_QUERY\n");
@@ -304,7 +305,7 @@ void print_igmp_details(struct ip* ip_header){
         printf("igmp type: mcast traceroute messages\n");
         break;
     default:
-        printf("igmpo type: unknown\n");
+        printf("igmp type: unknown %d\n", igmp_header->igmp_type);
         break;
     }
     printf("igmp routing code: %d\n", igmp_header->igmp_code);
@@ -316,6 +317,57 @@ void print_ip_addresses(const u_char* packet, int ip_version){
         struct ip* ip_header = (struct ip*) packet;
         printf("src IP: %s\n", inet_ntoa(ip_header->ip_src));
         printf("dst IP: %s\n", inet_ntoa(ip_header->ip_dst));
+    }
+}
+
+void print_icmp_details(const u_char* packet, int ip_version){
+    if(ip_version == IPV4){
+        struct ip* ip_header = (struct ip*) packet;
+        struct icmp* icmp_header = (struct icmp*)((unsigned char*)ip_header + ip_header->ip_hl * 4);
+        switch (icmp_header->icmp_type){
+            //all message types taken from igmp.h
+        case ICMP_ECHOREPLY:
+            printf("icmp type: Echo reply\n");
+            break;
+        case ICMP_DEST_UNREACH:
+            printf("icmp type: Destination Unreachable\n");
+            break;
+        case ICMP_REDIRECT:
+            printf("icmp type: Redirect (change route)\n");
+            break;
+        case ICMP_ECHO:
+            printf("icmp type: Echo request\n");
+            break;
+        case ICMP_TIME_EXCEEDED:
+            printf("icmp type: Time Exceeded\n");
+            break;
+        case ICMP_PARAMETERPROB:
+            printf("icmp type: Parameter problem\n");
+            break;
+        case ICMP_TIMESTAMP:
+            printf("icmp type: Timestamp request\n");
+            break;
+        case ICMP_TIMESTAMPREPLY:
+            printf("icmp type: Timestamp reply\n");
+            break;
+        case ICMP_INFO_REQUEST:
+            printf("icmp type: Information Request\n");
+            break;
+        case ICMP_INFO_REPLY:
+            printf("icmp type: Information Reply\n");
+            break;
+        case ICMP_ADDRESS:
+            printf("icmp type: Information Request\n");
+            break;
+        case ICMP_ADDRESSREPLY:
+            printf("icmp type: Information Reply\n");
+            break;
+        default:
+            printf("icmp type: unknown %d\n", icmp_header->icmp_type);
+            break;
+        }
+        printf("icmp code: %d\n", icmp_header->icmp_code);
+        
     }
 }
 
@@ -342,17 +394,20 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
         struct ip* ip_header = (struct ip*) packet;
         if (ip_header->ip_p == IPPROTO_TCP) {
             print_ip_addresses(packet, IPV4);
-            print_packet_ports(ip_header, TCP_PROTOCOL, IPV4);
+            print_packet_ports(packet, TCP_PROTOCOL, IPV4);
             printf("Captured a TCP packet\n");
         } else if (ip_header->ip_p == IPPROTO_UDP) {
             print_ip_addresses(packet, IPV4);
-            print_packet_ports(ip_header, UDP_PROTOCOL, IPV4);
+            print_packet_ports(packet, UDP_PROTOCOL, IPV4);
             printf("Captured a UDP packet\n");
         } else if(ip_header->ip_p == IPPROTO_ICMP) {
-            
+            print_ip_addresses(packet, IPV4);
+            print_icmp_details(packet, IPV4);
+            printf("Captured an ICMP packet\n");
         } else if(ip_header->ip_p == IPPROTO_IGMP){
             print_ip_addresses(packet, IPV4);
-            print_igmp_details(ip_header);
+            print_igmp_details(packet);
+            printf("Captured an IGMP packet\n");
         }
         break;
     
