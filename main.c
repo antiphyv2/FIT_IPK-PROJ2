@@ -1,3 +1,9 @@
+/**
+ * @file main.c
+ * @author Samuel Hejnicek xhejni00
+ * @brief Main file for the sniffer
+ */
+
 #include "argparser.h"
 #include "sniffer.h"
 #include "prints.h"

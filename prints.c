@@ -1,3 +1,9 @@
+/**
+ * @file prints.c
+ * @author Samuel Hejnicek
+ * @brief File containing functions for printing packet information
+ */
+
 #include "prints.h"
 
 void print_network_interfaces(parsed_info* info) {
@@ -281,18 +287,6 @@ void print_icmp_details(const u_char* packet, int ip_version){
         struct icmp6_hdr* icmp6_header = (struct icmp6_hdr*) packet;
         switch (icmp6_header->icmp6_type){
         //types were selected from icmp6.h
-        case ICMP6_DST_UNREACH:
-            printf("icmp6 type: Destination unreachable\n");
-            break;
-        case ICMP6_PACKET_TOO_BIG:
-            printf("icmp6 type: Packet too big\n");
-            break;
-        case ICMP6_TIME_EXCEEDED:
-            printf("icmp6 type: Time Exceeded\n");
-            break;
-        case ICMP6_PARAM_PROB:
-            printf("icmp6 type: Parameter problem\n");
-            break;
         case ICMP6_ECHO_REQUEST:
             printf("icmp6 type: Echo request\n");
             break;

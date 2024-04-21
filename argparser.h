@@ -1,3 +1,10 @@
+/**
+ * @file argparser.h
+ * @author Samuel Hejnicek xhejni00
+ * @brief Header file defining functions for parsing CLI arguments
+ 
+ */
+
 #ifndef ARGPARSER_H
 #define ARGPARSER_H
 

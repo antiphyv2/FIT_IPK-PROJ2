@@ -1,3 +1,9 @@
+/**
+ * @file argparser.c
+ * @author Samuel Hejnicek xhejni00
+ * @brief File containing functions for parsing CLI arguments
+ */
+
 #include "argparser.h"
 
 void print_help(){
@@ -77,10 +83,10 @@ parsed_info* parse_args(int argc, char* argv[]){
             } else if(strcmp(long_args[option_index].name, "port-destination") == 0){
                 info->port_destination = optarg;
             } else {
+                port_set = true;
                 info->port = optarg;
             }
             
-            port_set = true;
             //Check whether port has valid value
             int temp_port = (int) strtol(optarg, &end_ptr, 10);
             if(!check_port_range(temp_port)){

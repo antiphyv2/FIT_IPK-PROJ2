@@ -1,3 +1,9 @@
+/**
+ * @file sniffer.c
+ * @author Samuel Hejnicek xhejni00
+ * @brief File containing functions for building up the sniffer
+ */
+
 #include "sniffer.h"
 #include "prints.h"
 
@@ -61,17 +67,31 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
             strcat(sniffer_filter, "port ");
             strcat(sniffer_filter, info->port);
             strcat(sniffer_filter, ")");
-        } else if(info->port_source){
+        } 
+        if(info->port_source && info->port_destination){
             strcat(sniffer_filter, " and ");
+            strcat(sniffer_filter, "(");
             strcat(sniffer_filter, "src port ");
             strcat(sniffer_filter, info->port_source);
-            strcat(sniffer_filter, ")");
-        } else if(info->port_destination){
-            strcat(sniffer_filter, " and ");
+            strcat(sniffer_filter, " or ");
             strcat(sniffer_filter, "dst port ");
             strcat(sniffer_filter, info->port_destination);
             strcat(sniffer_filter, ")");
+            strcat(sniffer_filter, ")");
+        } else {
+            if(info->port_source){
+                strcat(sniffer_filter, " and ");
+                strcat(sniffer_filter, "src port ");
+                strcat(sniffer_filter, info->port_source);
+                strcat(sniffer_filter, ")");
+            } else if(info->port_destination){
+                strcat(sniffer_filter, " and ");
+                strcat(sniffer_filter, "dst port ");
+                strcat(sniffer_filter, info->port_destination);
+                strcat(sniffer_filter, ")");
+            }
         }
+
         
     }
 
@@ -93,7 +113,7 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
         if(sniffer_filter[0] != '\0'){
             strcat(sniffer_filter, " or ");
         }
-        strcat(sniffer_filter, "icmp6");
+        strcat(sniffer_filter, "icmp6 and (ip6[40] == 128 or ip6[40] == 129)");
     }
 
     if(info->igmp){
@@ -119,6 +139,7 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
         strcat(sniffer_filter, "icmp6 and (ip6[40] == 133 or ip6[40] == 135 or ip6[40] == 135  or ip6[40] == 136 or ip6[40] == 137)");
     }
 
+    printf("FILTER: %s\n", sniffer_filter);
     struct bpf_program bpf;
     //Transform filter to bpf program
     ret_code = pcap_compile(*sniffer, &bpf, sniffer_filter, 0, netmask);

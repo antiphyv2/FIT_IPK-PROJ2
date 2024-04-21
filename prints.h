@@ -1,3 +1,9 @@
+/**
+ * @file prints.h
+ * @author Samuel Hejnicek
+ * @brief Header file defining functions for printing packet information
+ */
+
 #ifndef PRINTS_H
 #define PRINTS_H
 #include "argparser.h"
