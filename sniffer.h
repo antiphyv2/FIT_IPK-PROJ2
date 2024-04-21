@@ -4,7 +4,7 @@
  * @brief Header file defining functions for building up the sniffer
  */
 
-ifndef SNIFFER_H
+#ifndef SNIFFER_H
 #define SNIFFER_H
 #include "argparser.h"
 
