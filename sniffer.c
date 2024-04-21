@@ -33,9 +33,11 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
         exit(EXIT_FAILURE);
     }
 
+    //Prepare buffer for sniffer filter
     char sniffer_filter[256];
     memset(sniffer_filter, 0, sizeof(sniffer_filter));
 
+    //Add values to sniffer filter, due to precedence, parentheses are added
     if (info->protocol_tcp || info->protocol_udp) {
         if(info->port || info->port_destination || info->port_source){
                 strcat(sniffer_filter, "(");
@@ -104,6 +106,7 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
         if(sniffer_filter[0] != '\0'){
             strcat(sniffer_filter, " or ");
         }
+        //Values for filter added according to MLD wikipedia site: https://en.wikipedia.org/wiki/Multicast_Listener_Discovery
         strcat(sniffer_filter, "icmp6 and (ip6[40] == 130 or ip6[40] == 131 or ip6[40] == 132 or ip6[40] == 143)");
     }
 
@@ -111,12 +114,12 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
         if(sniffer_filter[0] != '\0'){
             strcat(sniffer_filter, " or ");
         }
+        //Values for filter added according to NDP wikipedia site: https://en.wikipedia.org/wiki/Neighbor_Discovery_Protocol
         strcat(sniffer_filter, "icmp6 and (ip6[40] == 133 or ip6[40] == 135 or ip6[40] == 135  or ip6[40] == 136 or ip6[40] == 137)");
     }
 
-    printf("Filter: %s\n", sniffer_filter);
-
     struct bpf_program bpf;
+    //Transform filter to bpf program
     ret_code = pcap_compile(*sniffer, &bpf, sniffer_filter, 0, netmask);
     if (ret_code != 0) {
         fprintf(stderr, "ERR: [PCAP_COMPILE] %s\n", pcap_geterr(*sniffer));
@@ -125,6 +128,7 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
         exit(EXIT_FAILURE);
     }
 
+    //Apply filter on sniffer
     ret_code = pcap_setfilter(*sniffer, &bpf);
     if (ret_code != 0) {
         fprintf(stderr, "ERR: [PCAP_SETFILTER] %s\n", pcap_geterr(*sniffer));
@@ -146,7 +150,7 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
     print_mac_addresses((struct ether_header*) packet);
 
     //Print frame length
-    printf("frame length %u\n", pkthdr->len);
+    printf("frame length: %u\n", pkthdr->len);
 
     //Find out if type is IPV4, IPV6 or ARP
     int ethernet_type = ntohs(((struct ether_header*) packet)->ether_type);
@@ -156,7 +160,9 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
 
     switch (ethernet_type)
     {
+    //ipv4
     case ETHERTYPE_IP:
+        //Get the ip header to determine protocol
         struct ip* ip_header = (struct ip*) packet;
         if (ip_header->ip_p == IPPROTO_TCP) {
             print_ip_addresses(packet, IPV4);
@@ -176,8 +182,9 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
             print_igmp_details(packet);
         }
         break;
-    
+    //ipv6
     case ETHERTYPE_IPV6:
+    //Get the ipv6 header (next_header) to determine protocol
         struct ip6_hdr* ipv6_header = (struct ip6_hdr*) packet;
         unsigned int nxt_header = ipv6_header->ip6_ctlun.ip6_un1.ip6_un1_nxt;
             if(nxt_header == IPPROTO_TCP){
@@ -194,7 +201,7 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
                 print_icmp_details(packet, IPV6);
             }
         break;
-
+    //arp
     case ETHERTYPE_ARP:
         print_arp_details(packet);
         break;
@@ -202,12 +209,14 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
         break;
     }
     packet -= ETH_HEADER_LEN; //ETH header will be printed as well
-    print_packet_hex_ascii(packet, pkthdr->caplen);
+    print_packet_hex_ascii(packet, pkthdr->caplen); //Print packet data details
     
 }
     
 int sniff(pcap_t** sniffer, parsed_info* info){
+    //Create and activate pcap sniffer and create a filter
     create_pcap_sniffer(sniffer, info);
+    //Apply rules from CLI to pcap filter
     apply_pcap_filter(sniffer, info);
 
     //start sniffer loop to capture spefific amount of packets
@@ -216,6 +225,7 @@ int sniff(pcap_t** sniffer, parsed_info* info){
         fprintf(stderr, "ERR: [PCAP_LOOP] %s\n", pcap_geterr(*sniffer));
         return -1;
     }
+    //Close sniffer and free memory
     pcap_close(*sniffer);
     free(info);
     return 0;

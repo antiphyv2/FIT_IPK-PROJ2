@@ -18,6 +18,7 @@ bool check_port_range(int port){
     return true;
 }
 
+//Structure for long options to be parsed using getopts_long
 struct option long_args[] = {
     {"interface", optional_argument, NULL, 'i'},
     {"tcp", no_argument, 0, 't'},
@@ -40,7 +41,7 @@ parsed_info* parse_args(int argc, char* argv[]){
         fprintf(stderr, "ERR: [MALLOC].\n");
         return NULL;
     }
-
+    //Set default values to 0
     memset(info, 0, sizeof(parsed_info));
     info->packets_to_display = -1;
 
@@ -59,6 +60,7 @@ parsed_info* parse_args(int argc, char* argv[]){
                 return NULL;
             }
             interface_set = true;
+            //Optional argument
             if(argv[optind] != NULL){
                 info->interface = argv[optind];
             }
@@ -69,6 +71,7 @@ parsed_info* parse_args(int argc, char* argv[]){
                 return NULL;
             }
 
+            //Determine "type" of port
             if (strcmp(long_args[option_index].name, "port-source") == 0){
                 info->port_source = optarg;
             } else if(strcmp(long_args[option_index].name, "port-destination") == 0){
@@ -78,7 +81,7 @@ parsed_info* parse_args(int argc, char* argv[]){
             }
             
             port_set = true;
-
+            //Check whether port has valid value
             int temp_port = (int) strtol(optarg, &end_ptr, 10);
             if(!check_port_range(temp_port)){
                 argparse_error_dealloc(info, "ERR: [ARGPARSER] Invalid number in port. Range is 0 - 65535.\n");
@@ -145,9 +148,11 @@ parsed_info* parse_args(int argc, char* argv[]){
     }
 
     if(info->packets_to_display == -1){
+        //Set default value to 1
         info->packets_to_display = 1;
     }
 
+    //If port is specified without protocol -> error
     if((info->port || info->port_destination || info->port_source) && (!info->protocol_tcp && !info->protocol_udp)){
         argparse_error_dealloc(info, "ERR: [ARGPARSER] Port cant be specified without TCP or UDP.\n");
         return NULL;

@@ -3,16 +3,17 @@
 void print_network_interfaces(parsed_info* info) {
     pcap_if_t *network_devs;
     char errbuf[PCAP_ERRBUF_SIZE];
-
+    //Get a list of all devices
     if (pcap_findalldevs(&network_devs, errbuf) == -1) {
         fprintf(stderr, "ERR: [PCAP_FINDALL] %s\n", errbuf);
         free(info);
         exit(EXIT_FAILURE);
     }
 
-    printf("List of network interfaces:\n");
+    printf("List of available network interfaces:\n");
     pcap_if_t *dev = network_devs;
     int int_count = 1;
+    //Iterate through devices and print description if exists
     while(dev != NULL){
         if(dev->description){
             printf("%d. interface: %s, Description: %s\n", int_count, dev->name, dev->description);
@@ -60,7 +61,7 @@ void print_mac_addresses(struct ether_header* eth_header){
 void print_ip_addresses(const u_char* packet, int ip_version){
     if(ip_version == IPV4){
         struct ip* ip_header = (struct ip*) packet;
-
+        //Print IP using inet_ntoa, it might be deprecated but should be fine (no buffer needs to be created)
         printf("src IP: %s\n", inet_ntoa(ip_header->ip_src));
         printf("dst IP: %s\n", inet_ntoa(ip_header->ip_dst));
     } else {
@@ -72,13 +73,14 @@ void print_ip_addresses(const u_char* packet, int ip_version){
         inet_ntop(AF_INET6, &ipv6_header->ip6_src, src_ipv6, INET6_ADDRSTRLEN);
         inet_ntop(AF_INET6, &ipv6_header->ip6_dst, dst_ipv6, INET6_ADDRSTRLEN);
 
-        printf("src IPV6: %s\n", src_ipv6);
-        printf("dst IPV6: %s\n", dst_ipv6);
+        printf("src IP: %s\n", src_ipv6);
+        printf("dst IP: %s\n", dst_ipv6);
     }
 }
 
 void print_packet_ports(const u_char* packet, int protocol, int ip_version){
     if(ip_version == IPV4){
+        //IP header is just at the pointer to the packet (Eth Header added before)
         struct ip* ip_header = (struct ip*) packet;
         if(protocol == TCP_PROTOCOL){
             struct tcphdr* tcp_header = (struct tcphdr *) ((unsigned char*)ip_header + ip_header->ip_hl * 4); //Multiply by 4 to convert it to bytes (length in 32bit words)
@@ -187,6 +189,7 @@ void print_arp_details(const u_char* packet){
 
 void print_igmp_details(const u_char* packet){
     struct ip* ip_header = (struct ip*) packet;
+    //IGMP is ipv4, headerlen must be added
     struct igmp* igmp_header = (struct igmp *)((unsigned char*)ip_header + ip_header->ip_hl * 4);
     switch (igmp_header->igmp_type){
     //all message types taken from igmp.h

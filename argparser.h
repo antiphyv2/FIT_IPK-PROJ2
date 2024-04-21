@@ -20,6 +20,7 @@
 #include <time.h>
 #include <ctype.h>
 
+//Structure for CLI arguments
 typedef struct INFO {
     char* interface;
     bool protocol_tcp;
