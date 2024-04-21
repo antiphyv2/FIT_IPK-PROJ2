@@ -15,6 +15,7 @@
 #include <netinet/ether.h>
 #include <netinet/ip6.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/icmp6.h>
 #include <netinet/igmp.h>
 #include <time.h>
 #include <ctype.h>
