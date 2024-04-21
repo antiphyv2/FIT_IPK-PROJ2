@@ -190,7 +190,7 @@ void print_arp_details(const u_char* packet){
 void print_igmp_details(const u_char* packet){
     struct ip* ip_header = (struct ip*) packet;
     //IGMP is ipv4, headerlen must be added
-    struct igmp* igmp_header = (struct igmp *)((unsigned char*)ip_header + ip_header->ip_hl * 4);
+    struct igmp* igmp_header = (struct igmp *)((unsigned char*)ip_header + ip_header->ip_hl * 4); //Multiply by 4 to convert it to bytes (length in 32bit words)
     switch (igmp_header->igmp_type){
     //all message types taken from igmp.h
     case IGMP_MEMBERSHIP_QUERY:
@@ -231,7 +231,7 @@ void print_igmp_details(const u_char* packet){
 void print_icmp_details(const u_char* packet, int ip_version){
     if(ip_version == IPV4){
         struct ip* ip_header = (struct ip*) packet;
-        struct icmp* icmp_header = (struct icmp*)((unsigned char*)ip_header + ip_header->ip_hl * 4);
+        struct icmp* icmp_header = (struct icmp*)((unsigned char*)ip_header + ip_header->ip_hl * 4); //Multiply by 4 to convert it to bytes (length in 32bit words)
         switch (icmp_header->icmp_type){
             //all message types taken from icmp.h
         case ICMP_ECHOREPLY:

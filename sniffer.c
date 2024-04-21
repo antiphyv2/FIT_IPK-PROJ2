@@ -3,7 +3,7 @@
 
 void create_pcap_sniffer(pcap_t** sniffer, parsed_info* info){
     char errbuf[PCAP_ERRBUF_SIZE];
-    //Sniffer opened in promiscious mode
+    //All values for pcap_open_live are set according to an example on https://www.tcpdump.org/pcap.html (open device for sniffing)
     *sniffer = pcap_open_live(info->interface, BUFSIZ, 1, 1000, errbuf);
     if(!(*sniffer)){
         fprintf(stderr, "ERR: [PCAP_CREATE] %s\n", errbuf);
@@ -12,7 +12,7 @@ void create_pcap_sniffer(pcap_t** sniffer, parsed_info* info){
     }
 
     int linktype = pcap_datalink(*sniffer);
-    if(linktype != DLT_EN10MB){ //Interface must be LINKTYPE Ethernet
+    if(linktype != DLT_EN10MB){ //No support for other link types other than ethernet
         fprintf(stderr, "ERR: [DATALINK NOT ETHERNET]\n");
         pcap_close(*sniffer);
         free(info);
@@ -25,6 +25,7 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
     bpf_u_int32 netmask;
     char errbuf[PCAP_ERRBUF_SIZE];
 
+    //Obtain netmask of the interface needed later for pcap_compile
     int ret_code = pcap_lookupnet(info->interface, &ip_address, &netmask, errbuf);
     if (ret_code != 0) {
         fprintf(stderr, "ERR: [PCAP_LOOKUPNET] %s\n", errbuf);
@@ -146,7 +147,7 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
     //At first, print packet timestamp
     print_packet_time(pkthdr);
 
-    //Secondly print mac addresses from the header
+    //Secondly print mac addresses from the ethernet header
     print_mac_addresses((struct ether_header*) packet);
 
     //Print frame length
@@ -191,7 +192,6 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
                 print_ip_addresses(packet, IPV6);
                 printf("packet type: ipv6 TCP\n");
                 print_packet_ports(packet, TCP_PROTOCOL, IPV6);
-            } else if(nxt_header == IPPROTO_UDP){
                 print_ip_addresses(packet, IPV6);
                 printf("packet type: ipv6 UDP\n");
                 print_packet_ports(packet, UDP_PROTOCOL, IPV6);
@@ -203,12 +203,13 @@ void packet_parser(u_char* user, const struct pcap_pkthdr* pkthdr, const u_char*
         break;
     //arp
     case ETHERTYPE_ARP:
+        printf("packet type: ARP\n");
         print_arp_details(packet);
         break;
     default:
         break;
     }
-    packet -= ETH_HEADER_LEN; //ETH header will be printed as well
+    packet -= ETH_HEADER_LEN; //Eth header will be printed as well
     print_packet_hex_ascii(packet, pkthdr->caplen); //Print packet data details
     
 }
