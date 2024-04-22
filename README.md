@@ -12,19 +12,14 @@
     - [Spuštění programu](#spuštění-programu)
     - [Vypisované informace](#vypisované-informace)
   - [Stručná teorie k programu](#stručná-teorie-k-programu)
-    - [TCP Protokol](#tcp-protokol)
-    - [UDP Protokol](#udp-protokol)
-    - [Funkce poll](#funkce-poll)
+    - [ISO/OSI Model a průzkum paketů](#isoosi-model-a-průzkum-paketů)
+    - [PCAP knihovna](#pcap-knihovna)
+    - [Zachytávané protokoly](#zachytávané-protokoly)
   - [Implementace projektu](#implementace-projektu)
     - [Obsah souborů](#obsah-souborů)
     - [Zpracování vstupních argumentů](#zpracování-vstupních-argumentů)
-    - [Způsob zahájení komunikace](#způsob-zahájení-komunikace)
-    - [Příjmání a odesílání zpráv](#příjmání-a-odesílání-zpráv)
-    - [Kontrola syntaxe zpráv](#kontrola-syntaxe-zpráv)
-    - [Validace zpráv dle konečného automatu](#validace-zpráv-dle-konečného-automatu)
-    - [Blokování uživatelského vstupu](#blokování-uživatelského-vstupu)
-    - [Ztráta příchozích paketů u UDP](#ztráta-příchozích-paketů-u-udp)
-    - [Kontrola čísla příchozích paketů u UDP](#kontrola-čísla-příchozích-paketů-u-udp)
+    - [Nastavení analyzátoru paketů](#nastavení-analyzátoru-paketů)
+    - [Zachytávání paketů a výpis informací](#zachytávání-paketů-a-výpis-informací)
     - [Ukončení programu](#ukončení-programu)
   - [Testování programu](#testování-programu)
     - [TCP klient](#tcp-klient)
@@ -43,14 +38,14 @@ Program slouží jako síťový analyzátor paketů na uživatelsky specifikovan
 
 ### Spuštění programu
 
-Ke kompilaci programu stačí zadat příkaz make (ve složce se zdrojovými soubory), který vytvoří spustitelný soubor `./cmuchac`
+Ke kompilaci programu stačí zadat příkaz make (ve složce se zdrojovými soubory), který vytvoří spustitelný soubor `./ipk-sniffer`
 Ten lze následně spustit s následujícími parametry:
 
 | Argument                  | Hodnota               | Význam                 |      Popis                                                    |
 |---------------------------|-----------------------|------------------------|---------------------------------------------------------------|
-| `-i OR --interface`       | Od uživatele/chybí*   | Název rozhraní         | Rozhraní, na kterém bude analyzátor pracovat                  |
-| `-t OR --tcp`             |                       | Parametr TCP           | Filtrování TCP paketů (volitelně doplněno parametrem port**)  |
-| `-u OR --ucp`             |                       | Parametr UCP           | Filtrování UDP paketů (volitelně doplněno parametrem port**)  |
+| `-i or --interface`       | Od uživatele/chybí*   | Název rozhraní         | Rozhraní, na kterém bude analyzátor pracovat                  |
+| `-t or --tcp`             |                       | Parametr TCP           | Filtrování TCP paketů (volitelně doplněno parametrem port**)  |
+| `-u or --ucp`             |                       | Parametr UCP           | Filtrování UDP paketů (volitelně doplněno parametrem port**)  |
 | `-p`                      | Od uživatele          | Číslo portu            | Filtrování dle zadaného portu (port je zdrojový nebo příchozí)|
 | `--port-source`           | Od uživatele          | Číslo portu            | Filtrování dle zadaného portu (port je zdrojový)              |
 | `--port-destination`      | Od uživatele          | Číslo portu            | Filtrování dle zadaného portu (port je odchozí)               |
@@ -63,76 +58,75 @@ Ten lze následně spustit s následujícími parametry:
 | `-n`                      | Od uživatele/chybí*** | Počet paketů           | Při zapnutí programu analyzuje zadaný počet paketů            |
 | `-h`                      |                       | Nápověda               | Vypíše nápovědu a skončí program.                             |
 
-Všechny argumenty lze zadat v jakémkoliv pořadí a akceptovaná čísla v argumentech jsou celá čísla. Pro spuštění analyzátoru paketl je nutné specifikovat rozhraní, na kterém bude pracovat. (Výpis rozraní viz Pozn. *).
+Všechny argumenty lze zadat v jakémkoliv pořadí a akceptovaná čísla v argumentech jsou celá čísla (pro port v rozmezí 0 až 65535 a pro n číslo větší nebo rovno 0). Pro spuštění analyzátoru paketl je nutné specifikovat rozhraní, na kterém bude pracovat. (Výpis rozraní viz Pozn. *).
 
 Pozn. * Pokud rozhraní není specifikováno, je vypsán seznam dostupných rozhraní a program ukončen (rovněž v případě spustění programu bez argumentů).
 
-Pozn. ** Parametrem port je myšlen `-p` nebo`--port-source` nebo `--port-source`
+Pozn. ** Parametrem `port` je myšlen `-p` nebo`--port-source` nebo `--port-source`. Mezi parametry `--port-source` a `--port-source` je logický vztah `OR` a tyto parametry nelze kombinovat s parametrem `-p`, žádný parametr typu `port` nelze zadat bez parametru `tcp` nebo `udp`.
 
-Pozn. *** Pokud není číslo specifikování, je výhozí hodnota 1. Pokud je zadáno číslo 0, analyzátor pracuje dokud není ukončen zkratkou CTRL+C.
-
-Mezi parametry `--port-source` a `--port-source` je logický vztah `OR` a tyto parametry nelze kombinovat s parametrem `-p`, žádný parametr typu `port` nelze zadat bez parametru `tcp` nebo `udp`.
+Pozn. *** Pokud není číslo specifikováno, je výhozí hodnota 1. Pokud je zadáno číslo 0, analyzátor pracuje dokud není ukončen zkratkou CTRL+C.
 
 Příklad (analyzátor pracuje na rozhraní eth0 a sleduje vešekeré pakety s odchozím/příchozím portem 443, paketů zachytí a vypíše 5): 
 
 ```sh
-./cmuchac -i eth0 --tcp -p 443 -n 5
+./ipk-sniffer -i eth0 --tcp -p 443 -n 5
 ```
 
 ### Vypisované informace
-* `/auth <username> <key> <displayname>` 
-Ověření totožnosti při připojení na server. Nejprve je nutné zadat uživatelské jméno, klíč (secret) a následně přezdívku, tedy jméno, které bude použito pro veřejné vystupování na serveru.
-* `/rename <displayname>` Změní přezdívku, pod kterou uživatel posílá zprávy
-* `/join <channellID>` Připojí se do jiného chatovacího kanálu
-* `/help` Vypíše seznam podporovaných příkazů
+
+U každého zachycecného paketu, který prošel uživatelsky zadanám filtrem (filtr mohl být prázdný) jsou vypsány následující informace:
+
+* `časová známka` ve formátu RFC 3339
+* `zdrojová a cílová MAC adresa` jako řetězec, jednotlivé části adresy jsou oddělené dvojtečkou
+* `délka rámce`v bytech
+* `data paketu` v hexadecimální a ascii podobě kopírující vzhled používající aplkace [Wireshark](https://www.wireshark.org/)
+
+Pokud existují:
+* `zdrojová a cílová ip adresa` jako řetězec, pokud jde o ipv4 je vypsána v "dotted decimal" podobě, v případě ipv6 je vypsána v souladu s RFC 5952
+* `zdrojový a cílový port` jako celé číslo
+
+Specifické pro daný protokol:
+* `doplňující informace` jako např. typ u ICMP4, ICMP6 či IGMP paketu
 
 ## Stručná teorie k programu
 
-### TCP Protokol
-TCP protokol je protokol transportní vrstvy používán na spolehlivou výměnu dat. TCP umožňuje zasílání kontinuálního proudu bytů a přenos je spojovaný a spolehlivý, což se pojí s vyšší režíí. Aby data vůbec mohla být zasílána je nutné vytvořit spojení, které se děje v pomocí tzv. 3-way handshake mechanismu. TCP protokol zajišťuje, že zprávy odeslané z jednoho zařízení dorazí do druhého zařízení ve stejném pořádí jako byly odeslány. Pokud je v TCP zjištěna ztráta paketu je automaticky spuštěn proces opětovného odeslání. Jednotlivé zprávy jsou odděleny \r\n, aby jej chatovací klient mohl rozlišit
+### ISO/OSI Model a průzkum paketů
+Dle síťového modelu OSI můžeme síťovou komunikaci rozdělit na celkem 7 vrstev. Pro síťový analyzátor je důležitá hlavně 2. vrstva (linková), 3. vrstva (síťová) a 4. vrstva (transportní). Uživatelská data poslána po síti prochází zapouzdřením, kdy se na každé vrstvě přidá odpovídající hlavička protokolu (např. TCP nebo IP) podle typu dat a způsobu komunikace a tento proces postupuje od aplikační vrstvy až po fyzicku vrstvu, na které dochází k přenosu dat. U paketu (jednotka dat přenášená přes síťové rozhraní), který zachytí síťový analyzátor se postupuje opačným směrem, tedy nejprve je rozbalena hlavička Ethernetu na datalinkové vrstvě (z ní lze vyčíst například zdrojovou a cílovou MAC adresu) a následně se postupuje dále k hlavičce IP (z ní lze vyčíst např. zdrojovou a cílovou IP adresu) na třetí síťovou vrstvu, proces dále postupuje do vyšších vrstev. Tímto postupným "rozbalováním" dochází k průzkumu vlastností paketu. Postupná dekapsulace směrem od ethernetové vrstvy k vyšším je nutná, jelikož právě např. protokol TCP operuje na transportní vrstvě zatímco třeba protokol ARP na vrstvě linkové.
 
-### UDP Protokol
-UDP protokol je protokol transportní vrstvy, který nezajišťuje spolehlivou výměnu dat. UDP je na bázi "best effort delivery", který znamená, že u dat není zaručeno pořadí doručení paketů ani to, že data budou doručena v pořádku. Narozdíl od TCP nemusí navázat žádné spojení před odesláním samotných dat, nemá žádné mechanismy pro opětovné odesílání dat nebo potvrzení přijetí a tyto věci jsou tak řešeny specificky v chatovacím klientovi (opětovné odeslání zprávy, vypršení timeoutu). 
+### PCAP knihovna
+Jako knihovna poskytující vysokoúrovňové rozhraní pro zachytávání paketů byla použita knihovna PCAP. Tato knihovna nabízí všekeré potřebné funkce včetně vytvoření a spravování analyzátoru včetně jeho provozu v reálném čase. Její rozhraní umožňuje zachytit i pakety určené pro jiné cílové hosty a umožňuje číst a a zapisovat zachycené pakety ze/do souboru.
 
-### Funkce poll
-Funkce poll je funkce standardní knihovny jazyka C, která slouží ke sledování více file descriptorů současně na přicházející události z různých zdrojů. V kontextu chatovacího klienta je přicházející událostí příchozí zpráva od serveru na socket nebo čtení uživatelského vstupu, přičemž funkce poll není blokující a není nutný vícevláknový přístup v programování. Tato funkce je nutná, jelikož např. samotné čekání na zprávu je blokující operace a uživatel by tak musel čekat na zprávu od serveru, která ale není v daném okamžiku vůbec nutná.
+### Zachytávané protokoly
+* `TCP` - Protokol transportní vrstvy používán na spojovaný a spolehlivý přenost dat. Zprávy odeslané a příjmané mezi zařízeními dorazí ve stejném pořadí jako byly odeslány. Spojení zajišťuje pomocí 3-way handshake mechanismu. 
+  
+* `UDP` - Protokol transportní vrstvy nezajišťující spolehlivou výměnu dat. Není zaručeno pořadí paketů ani to, že dorazí v pořádku.
+  
+* `ICMPv4 a ICMPv6` - Komunikační protokoly sloužící k odesílání komunikačních a chybových zpráv mezi zařízeními. Všechny zprávy mají svůj typ, kteý indentifikuje jejich obsah. Patří sem rovněž i pakety typu `NDP` a `MLD`, které jsou specifikovány právě jmenovaným typem (např. MLD používá hodnoty 130, 131, 132 a 143).
+  
+* `ARP` - Komunikační protokol sloužící k získání linkové adresy (v případě tohoto analyzátoru MAC adresy, tedy fyzické adresy počítače) pomocí známe IP adresy.
+  
+* `IGMP` - Protokol síťové vrstvy umožňující několika zařízením sdílet stejnou IP adresu, aby tato zařízení mohla příjmat stejná data (tedy používá podporu multicastu). Zařízení se připojují a odpoujují z tzv. multicastových skupin, která má sdílenou IP adresu.
 
 ## Implementace projektu
 
 ### Obsah souborů
-Projekt je rozdělen do několik zdrojových souborů a díky programovacímu jazyku C++ je napsán se snahou využití objektově orientovaného programování.
-* `main.cpp a main.hpp` - Funkce main a funkce pro korektní ukončení programu s dealokací paměti, statická třída pro odchycení CTRL-C
-* `socket.cpp a socket.hpp` - Třída socket pro uchovávání informací o socketu, jeho tvorby a záník
-* `arg_parser.cpp a arg_parser.hpp` - Statická třída pro zpracování vstupních argumentů
-* `messages.cpp a messages.hpp` - Abstraktní třída NetworkMessage a jednotlivé podtřídy pro TCP a UDP zprávy
-* `clients.cpp a clients.hpp` - Abstraktní třída NetworkClient a jednotlivé podtřídy pro TCP a UDP klienta
+Projekt je rozdělen do několik zdrojových souborů.
+* `main.c` - Funkce main a funkce pro korektní ukončení programu (včetně zkratky CTRL + C) s dealokací paměti
+* `argparser.c a argparser.h` - Funkce pro zpracování vstupních argumentů
+* `sniffer.c a sniffer.h` - Funkce pro nastavení analyzátoru paketů včetně nastavení jehó filtru
+* `prints.c a prints.h` - Funkce pro výpis potřebných informací o paketu
 
 ### Zpracování vstupních argumentů
-Na začátku programu dochází ke zpracování argumentů od uživatele pomocí statické metody `parse_args` a jejich uložení do specifické struktury, v případě nezadaných volitelných argumentů jsou dané hodnoty nastaveny na výchozí a v případě zadání chybného atributu například příliš vysokého čísla portu nebo špatně zvoleného transportního protokolu je program ukončen s chybou.
+Na začátku programu dochází ke zpracování argumentů od uživatele pomocí funkce `parse_args` a jejich uložení do specifické struktury. Pokud nebyly zadány žádné argumenty nebo byl zadán pouze argument pro rozhraní bez jeho hodnoty, je vypsán seznam dostupných rozhraní a program úspěšně ukončen. V případě zadání chybné hodnoty argumentu například příliš vysokého čísla portu nebo přímo neznámého argumentu je program rovněž ukončen, nýbrž s chybou.
 
-### Způsob zahájení komunikace
-Po zpracování argumentů dochází dle parametru typu protokolu k vytvoření instance TCP či UDP klienta a volání odpovídající metody, která zahají hlavní logiku programu. Následně pro oba klienty platí, že dochází k vytvoření socketu a volání metody `dns_lookup`, která pro případné zadané doménové jméno najde odpovídající IP adresu, v opačném případě se program ukončí. U TCP je navíc ještě zavolána funkce `connect`, která se serverem naváže stabilní spojení (narozdíl od UDP). V neposlední řadě dojde k vytvoření struktury pro funkci poll a její naplnění file descriptory pro socket a standardní vstup.
+### Nastavení analyzátoru paketů
+Po zpracování argumentů dochází k zavolání funkce `sniff`, která má na starost veškerou činnost okolo analyzátoru. Ta nejprve zavolá pomocnou funkci `create_pcap_sniffer`, která vytvoří a aktivuje zmíněný analyzátor a zkontroluje, že datová linka je typu `ethernet` (jiná není podporována). Následně je volána funkce `apply_pcap_filter`, která ze vstupních argumentů uložených ve specifické datové struktuře vytvoří řetězec pravidel, která vloží do filtru, který je použit pro analyzátor.
 
-### Příjmání a odesílání zpráv
-Veškerá komunikace se děje v jediném `while loopu`, kdy podmínka kontroluje zdali je příchozí událost ze standardního vstupu či jde o příchozí zprávu ze serveru a dojde k pokračování v odpovídající větvi. Příjmání zpráv je u TCP řešeno pomocí funkce `recv` a dochází k načítání po 1 bytu, dokud není nalezen ukončovač `/r/n`, u UDP je načitání prováděno pomocí funkce `recvfrom`, jelikož po úspešném příjetí zprávy je potřeba změnit port, na který budou následující zprávy odesílány. Zpráva je narozdíl od TCP načtena naráz, jelikož zpráva do něj přijde vždy 1 (u TCP by takto mohlo v bufferu skončit zpráv více). Kvůli zmíněné změně portu pro UDP je používáná funkce `sendto` a pro TCP pouze funkce `send`.
-
-### Kontrola syntaxe zpráv
-Během příjmání a odesílání zpráv dochází simultánně ke kontrole zpráv od uživatele, které jsou kontrolovány pomocí funkce `check_user_message`, zdali se jedná o příkaz a následně zformátovány do vhodného tvaru pro odeslání v závislosti na TCP/UDP protokolu pomocí funkce `process_outgoing_message` a rovněž dochází ke kontrole zpráv od serveru (funkce `process_inbound_message`), které jsou rozpoznány a předány ke kontrole dále.
-
-### Validace zpráv dle konečného automatu
-Po úspěšné kontrole příchozí zprávy dochází k ověření, že příchozí zpráva může být v daném stavu přijata (výčet stavů automatu je definován pomocí `enum` stavů, stavy `ERR` a `BYE` nejsou přímo implementovány z důvodu jejich nepotřebnosti), v pozitivním případě dochází k jejímu výpisu na odpovídající standardní výstup, v opačném případě dochází k chybě vedoucí k poslání chybové hlášky zpět k serveru nebo rovnou ukončení programu. Rovněž odesílání zpráv může stavy FSM nastavovat (poslání `auth` zprávy udělá přechod do `AUTH` stavu).
-
-### Blokování uživatelského vstupu
-Pokud dojde k odeslání zprávy, který vyžaduje odpověď tj. `CONFIRM` a `REPLY` u UDP a `REPLY` u TCP, dojde k zablokování vstupu od uživatele (respektive poll nebude brát v potaz uživatelský vstup). Po přijatí očekáváné zprávy dojde opět k odblokování a zpracování zpráv, které mohl uživatel v mezičase zadat.
-
-### Ztráta příchozích paketů u UDP 
-Kvůli podstatě UDP komunikace zmíněné dříve je u UDP klienta nastaven na socket časový interval , který určuje dobu, do které na jakoukoliv odeslanou uživatelskou zprávu musí přijít zpráva typu `CONFIRM`. Pokud do daného intervalu zpráva nepřijde, je zvýšen čítač pokusů odeslané zprávy a zpráva je odeslána znovu. Tento proces se opakuje do té doby než je dosažen maximální limit počtu opětovně odeslaných zpráv a program je ukončen. Na potvrzovací zprávu se čeká i v případě odeslání zprávy `BYE` od klienta. Správné a včasné přijetí zprávy `CONFIRM` zajišťuje funkce `handle_timeout`. V případě, že před zprávou `CONFIRM` dorazí zpráva jiného typu, je zpracována a zvalidována odpovídajícím způsobem popsaným výše.
-
-### Kontrola čísla příchozích paketů u UDP
-U UDP komunikace může dojít k přijetí zprávy s duplicitním `MessageID`. V takovém případě je daná zpráva zahozena, a tedy ignorována. Validace probíhá tím způsobem, že u každé přijaté zprávy je její `MessageID` uloženo do vektoru `seen_ids`. U každé následující přijaté zprávy je nejprve nahlédnuto do tohoto vektoru a v případě nalezení daného identifikátoru je zpráva ignorována.
+### Zachytávání paketů a výpis informací
+Samotné zachytávání paketů na daném rozhraní probíhá pomocí funkce `pcap_loop`, které lze rovnou specifikovat i počet paketů k odchycení. Tato funkce při zachycení paketu v volá funkci `packet_parser`, která již z paketu extrahuje konkrétní informace od časového razítka po zdrojový či cílový port (a další) a zajistí výpis těchto informací na standardní výstup.
 
 ### Ukončení programu
-Ukončení programu je realizováno pomocí příkazu CTRL-C, příkazu CTRL-D (tedy poslání konce souboru) nebo pokud je konec v souladu s konečným automatem ze zadání projektu, tedy např. server pošle `BYE` zprávu. V každém případě se volá funkce `exit_program`, která dle předaných parametrů rozhodne, zdali je třeba ještě před koncem poslat `BYE` zprávu (pokud ano, je zpráva poslána a v případě UDP je také očekávána zpráva `CONFIRM`), program ukončí a dealokuje paměť. 
+Ukončení programu během analýzy paketů je realizováno pomocí příkazu CTRL-C. V takovém případě se volá funkce `graceful_exit`, která dealokuje paměť pro síťový analyzátor a program ukončí. Pokud během tvorby analyzátoru nebo jeho nastavení došlo k chybě, je vypsána chybová hláška a program ukončen již v daném okamžiku.
 
 ## Testování programu
 Testování probíhalo po celou dobu vývoje programu. Zahrnovalo jak kontrolu úniků paměti a původce neoprávněního přístupu do ní (pomocí funkce `valgrind`), tak nástroje díky kterým bylo možné dívat se na odeslané a přijaté zprávy klienta. Mezi testovací software patřily jak specializované nástroje (`netcat`, `wireshark`), tak např. referenční fakultní server nebo vlastní udp server. Všechny testy byly spouštěny na systému Ubuntu, který běžel v rámci `WSL 2` pod systémem Windows. Všechny příklady testů používají stejnou takřka sadu příkazů, jímž je ověření, poslání zprávy a ukončení spojení.
@@ -359,11 +353,16 @@ Chatovací klient není dokonalý a obsahuje několik věcí, které by mohly b�
 * Refaktorizace kódu, kdy je možné více sjednotit funkce pro hlavní logiku jak TCP tak UDP klienta, vyčlenění funkcí do dalších tříd (logika zpracovávání zpráv)
 * Přídání dalších podporovaných příkazů
 * Přidání časového razítka při odeslaných a přijatých zprávách
+* 
 ## Zdroje
-- Linux manual page - poll(2). [online]. [cit. 2024-04-01]. Dostupné z: https://man7.org/linux/man-pages/man2/poll.2.html
-- [RFC9293] Eddy, W. Transmission Control Protocol (TCP) [online]. Srpen 2022. [cit. 2024-04-01]. DOI: 10.17487/RFC9293. Dostupné z: https://datatracker.ietf.org/doc/html/rfc9293
-- [RFC894] Hornig, C. A Standard for the Transmission of IP Datagrams over Ethernet Networks [online]. Duben 1984. [cit. 2024-04-01]. DOI: 10.17487/RFC894.Dostupné z: https://datatracker.ietf.org/doc/html/rfc894
-- Transmission Control Protocol. In: *Wikipedia: the free encyclopedia*. [online]. 31. 1. 2024. [cit. 2024-04-01]. Dostupné z: https://cs.wikipedia.org/wiki/Transmission_Control_Protocol
-- User Datagram Protocol. In: *Wikipedia: the free encyclopedia*. [online]. 18. 11. 2023. [cit. 2024-04-01]. Dostupné z: https://cs.wikipedia.org/wiki/User_Datagram_Protocol
-- DOSTÁL R. Sockety a C/C++: funkce poll a závěr. [online].  [cit. 2024-04-01]. Dostupné z: https://www.root.cz/clanky/sokety-a-c-funkce-poll-a-zaver
-- IPK Project 1: Client for a chat server using IPK24-CHAT protocol [online]. [cit. 2024-04-01]. Dostupné z: https://git.fit.vutbr.cz/NESFIT/IPK-Projects-2024/src/branch/master/Project%201
+- [RFC3339] KLYNE, G. Date and Time on the Internet: Timestamps. [online]. Říjen 2002. [cit. 2024-04-22]. DOI: 10.17487/RFC3339. Dostupné z: https://datatracker.ietf.org/doc/html/rfc3339
+- [RFC5952] KAWAMURA, Seiichi a Masanobu KAWASHIMA. A Recommendation for IPv6 Address Text Representation. [online]. Srpen 2010. [cit. 2024-04-22]. DOI: 10.17487/RFC5952. Dostupné z: https://datatracker.ietf.org/doc/html/rfc5952
+- OSI model. In: *Wikipedia: the free encyclopedia*. [online]. 19. 4. 2024. [cit. 2024-04-22]. Dostupné z: https://en.wikipedia.org/wiki/OSI_model
+- ZAORAL, K. Přenos informací (paketů). [online]. [cit. 2024-04-22]. Dostupné z: https://www.itnetwork.cz/site/zaklady/site-prenos-informaci-paketu
+- CARSTENS, Tim. Programming with PCAP. [online]. [cit. 2024-04-22]. Dostupné z: https://www.tcpdump.org/pcap.html 
+- Pcap(3PCAP) manual page. [online].  4. 3. 2024. [cit. 2024-04-22]. Dostupné z: https://www.tcpdump.org/manpages/pcap.3pcap.html
+- Transmission Control Protocol. In: *Wikipedia: the free encyclopedia*. [online]. 31. 1. 2024. [cit. 2024-04-22]. Dostupné z: https://cs.wikipedia.org/wiki/Transmission_Control_Protocol
+- User Datagram Protocol. In: *Wikipedia: the free encyclopedia*. [online]. 18. 11. 2023. [cit. 2024-04-22]. Dostupné z: https://cs.wikipedia.org/wiki/User_Datagram_Protocol
+- Internet control message protocol. In: *Wikipedia: the free encyclopedia*. [online]. 9. 4. 2024. [cit. 2024-04-22]. Dostupné z: https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
+- CLOUDFARE. What is IGMP?. [online]. [cit. 2024-04-22]. Dostupné z: https://www.cloudflare.com/learning/network-layer/what-is-igmp/
+- FORTINET. What is Address Resolution Procol (ARP)?. [online]. [cit. 2024-04-22]. Dostupné z: https://www.fortinet.com/resources/cyberglossary/what-is-arp
