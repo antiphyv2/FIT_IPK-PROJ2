@@ -7,6 +7,9 @@
 #include "sniffer.h"
 #include "prints.h"
 
+//All functions needed to create the sniffer are based on an example from
+//https://vichargrave.github.io/programming/develop-a-packet-sniffer-with-libpcap/#build-and-run-the-sniffer
+
 void create_pcap_sniffer(pcap_t** sniffer, parsed_info* info){
     char errbuf[PCAP_ERRBUF_SIZE];
     //All values for pcap_open_live are set according to an example on https://www.tcpdump.org/pcap.html (open device for sniffing)
@@ -18,7 +21,7 @@ void create_pcap_sniffer(pcap_t** sniffer, parsed_info* info){
     }
 
     int linktype = pcap_datalink(*sniffer);
-    if(linktype != DLT_EN10MB){ //No support for other link types other than ethernet
+    if(linktype != DLT_EN10MB){ //No support for link types other than ethernet
         fprintf(stderr, "ERR: [DATALINK NOT ETHERNET]\n");
         pcap_close(*sniffer);
         free(info);
@@ -41,7 +44,7 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
     }
 
     //Prepare buffer for sniffer filter
-    char sniffer_filter[256];
+    char sniffer_filter[512];
     memset(sniffer_filter, 0, sizeof(sniffer_filter));
 
     //Add values to sniffer filter, due to precedence, parentheses are added
@@ -136,10 +139,13 @@ void apply_pcap_filter(pcap_t** sniffer, parsed_info* info){
             strcat(sniffer_filter, " or ");
         }
         //Values for filter added according to NDP wikipedia site: https://en.wikipedia.org/wiki/Neighbor_Discovery_Protocol
-        strcat(sniffer_filter, "icmp6 and (ip6[40] == 133 or ip6[40] == 135 or ip6[40] == 135  or ip6[40] == 136 or ip6[40] == 137)");
+        strcat(sniffer_filter, "icmp6 and (ip6[40] == 133 or ip6[40] == 135 or ip6[40] == 135 or ip6[40] == 136 or ip6[40] == 137)");
     }
 
-    printf("FILTER: %s\n", sniffer_filter);
+    if(info->filter_print){
+        printf("filter arguments: %s\n", sniffer_filter);
+    }
+
     struct bpf_program bpf;
     //Transform filter to bpf program
     ret_code = pcap_compile(*sniffer, &bpf, sniffer_filter, 0, netmask);

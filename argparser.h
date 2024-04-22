@@ -42,6 +42,7 @@ typedef struct INFO {
     bool igmp;
     bool mld;
     int packets_to_display;
+    bool filter_print;
 } parsed_info;
 
 /**

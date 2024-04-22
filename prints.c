@@ -170,7 +170,7 @@ void print_packet_hex_ascii(const u_char* packet, int packet_length){
             printf("%c", character);
         }
     }
-    printf("\n");
+    printf("\n\n");
 }
 
 void print_arp_details(const u_char* packet){

@@ -37,6 +37,7 @@ struct option long_args[] = {
     {"igmp", no_argument, 0, 'd'},
     {"mld", no_argument, 0, 'e'},
     {"ndp", no_argument, 0, 'f'},
+    {"filter", no_argument, 0, 'x'},
     {0, 0, 0, 0}
 };
 
@@ -144,6 +145,9 @@ parsed_info* parse_args(int argc, char* argv[]){
             break;
         case 'f':
             info->ndp = true;
+            break;
+        case 'x':
+            info->filter_print = true;
             break;
         case '?':
             argparse_error_dealloc(info, "ERR: [ARGPARSER] Unrecognized argument or empty value.\n");

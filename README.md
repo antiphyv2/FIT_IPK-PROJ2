@@ -24,7 +24,7 @@
   - [Testování programu](#testování-programu)
     - [Testování zpracování argumentů](#testování-zpracování-argumentů)
     - [Test správné dealokace paměti po ukončení programu s CTRL + C](#test-správné-dealokace-paměti-po-ukončení-programu-s-ctrl--c)
-    - [UDP klient](#udp-klient)
+    - [Testování odchycení a výpisu informací jednotlivých paketů](#testování-odchycení-a-výpisu-informací-jednotlivých-paketů)
   - [Možná vylepšení](#možná-vylepšení)
   - [Zdroje](#zdroje)
 
@@ -244,7 +244,7 @@ Cílem tohoto testu bylo zkontrolovat nepřítomnost úniků paměti při spušt
     ==711773== Memcheck, a memory error detector
     ==711773== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
     ==711773== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
-    ==711773== Command: ./ipk-sniffer -i eth0 -n 3
+    ==711773== Command: ./ipk-sniffer -i eth0 -n 0
     ==711773==
     timestamp: 2024-04-22T17:25:09.882+02:00
     src MAC: 00:15:5d:e7:8c:20
@@ -276,27 +276,7 @@ Cílem tohoto testu bylo zkontrolovat nepřítomnost úniků paměti při spušt
     0x0050: 69 66 79 2d 63 6f 6e 6e 65 63 74 04 5f 74 63 70  ify-conn ect._tcp
     0x0060: 05 6c 6f 63 61 6c 00 00 0c 00 01                 .local.. ...
 
-    timestamp: 2024-04-22T17:25:10.108+02:00
-    src MAC: 00:15:5d:e7:8c:20
-    dst MAC: 01:00:5e:7f:ff:fa
-    frame length: 167
-    src IP: 172.29.32.1
-    dst IP: 239.255.255.250
-    packet type: ipv4 UDP
-    src port: 51853
-    dst port: 1900
-
-    0x0000: 01 00 5e 7f ff fa 00 15 5d e7 8c 20 08 00 45 00  ..^..... ].. ..E.
-    0x0010: 00 99 4c ea 00 00 ff 11 b2 50 ac 1d 20 01 ef ff  ..L..... .P.. ...
-    0x0020: ff fa ca 8d 07 6c 00 85 43 48 4d 2d 53 45 41 52  .....l.. CHM-SEAR
-    0x0030: 43 48 20 2a 20 48 54 54 50 2f 31 2e 31 0d 0a 48  CH * HTT P/1.1..H
-    0x0040: 4f 53 54 3a 20 32 33 39 2e 32 35 35 2e 32 35 35  OST: 239 .255.255
-    0x0050: 2e 32 35 30 3a 31 39 30 30 0d 0a 4d 41 4e 3a 20  .250:190 0..MAN:
-    0x0060: 22 73 73 64 70 3a 64 69 73 63 6f 76 65 72 22 0d  "ssdp:di scover".
-    0x0070: 0a 4d 58 3a 20 31 0d 0a 53 54 3a 20 75 72 6e 3a  .MX: 1.. ST: urn:
-    0x0080: 64 69 61 6c 2d 6d 75 6c 74 69 73 63 72 65 65 6e  dial-mul tiscreen
-    0x0090: 2d 6f 72 67 3a 73 65 72 76 69 63 65 3a 64 69 61  -org:ser vice:dia
-    0x00a0: 6c 3a 31 0d 0a 0d 0a                             l:1....
+    ... (další pakety)
 
     ^C==711773==
     ==711773== HEAP SUMMARY:
@@ -310,146 +290,259 @@ Cílem tohoto testu bylo zkontrolovat nepřítomnost úniků paměti při spušt
   ```
   Výpis ukazuje korektní dealokaci paměti i po několika odchycených paketech.
 
-### UDP klient
-Testování UDP klienta bylo mnohem kompikovanější než u TCP, jelikož posílání zpráv je realizováno v binární podobě, a tak není možné snadno odpovídat zpět například pomocí netcat serveru a navíc je potřeba při nastaveném socket timeoutu odpovědět včas jinak je možné snadno dosáhnout limitu pro timeout a dojít tak u končení klienta. Přesto bylo realizováno několik možností jak spojení testovat.
+### Testování odchycení a výpisu informací jednotlivých paketů
+Zachytávání jednotlivých paketů probíhalo buď na výchozím rozhraní WSL `eth0`, kde síťový analyzátor vypsal informace o paketu prakticky vždy (na rozhraní se stále něco děje a protokolem je vždy `TCP` nebo `UDP`) nebo na rozhraní `lo`, tedy loopback rozhraní. Výstup programu byl následně vždy porovnán s programem Wireshark, který rovněž poskytuje užitečné informace o odchyceném paketu a sloužil tak jako kontrola správnosti detekce typu paketu a kontrole správných výpisů.
 
-1. Netcat na loopback rozhraní
+1. Testování paketů protokolu TCP/UDP
 
-    I přes úskalí UDP byl projekt částečně přes netcat testován, konkrétněji posílání zpráv přes UDP protokol. V takovém případě bylo možné vyčíst přijaté zprávy z netcat serveru, nicméně nebylo možné na ně odpovědět zpět (kvůli jejich formátu). Rovněž nastal problém s možnými timeouty, kdy po jejich implementaci nebylo možné netcat validně využívat, protože v daném časovém intervalu nemohla být doručena odpověď.
-    Proto se stal netcat brzo nepřijatelným testovacím prostředím.  
+   Cílem bylo otestovat, zdali síťový analyzátor správně zachytí TCP nebo UDP pakety (kvůli jejich stejnému výpisu jsou spojeny v 1 test) a vytiskne na standardní výstup správné informace. Jak bylo avizováno v odstavci výše, pakety obou typů byly zachytávány na rozhraní `eth0`, kde byly odchyceny automaticky (tedy jejich existence byla v režii OS).
 
-    Server byl spuštěn s tímto příkazem (klient spuštěn stejně jako u TCP):
+    Program byl pro testování spuštěn tímto příkazem:
     ```sh
-    nc -4 -u -l -v 127.0.0.1 4567
+    sudo ./ipk-sniffer -i eth0 -t -- udp
     ```
-
-    Tabulka níže obsahuje zprávy přijaté na netcat serveru.
+    Výpis programu:
     ```sh
-    Connection received on localhost 56489
-    xloginsusenkatopsecretxloginsusenkatopsecretxloginsusenkatopsecretxloginsusenkatopsecret
-    ```
-    Z tabulky lze vyčíst ze server celkem 4x přijal autentizaci s danými parametry. Bohužel ale nebylo možné poslat odpověď, a tak v klientu vypršel timeout na `AUTH`zprávu a následně po odeslání zprávy `BYE` i na tuto zprávu viz tabulka:
+   timestamp: 2024-04-22T18:19:49.311+02:00
+   src MAC: 00:15:5d:e7:8c:20
+   dst MAC: 00:15:5d:a5:ba:2b
+   frame length: 105
+   src IP: 140.82.112.21
+   dst IP: 172.29.36.121
+   packet type: ipv4 TCP
+   src port: 443
+   dst port: 42090
 
-    ```sh
-    /auth xlogin topsecret susenka
-    ERR: MAX TIMEOUTS REACHED.
-    ERR: MAX TIMEOUTS REACHED.
-    ```
-
-2. Studentský UDP server
-   
-   UDP server běží na lokálním rozhraní a je vytvořený jedním ze studentů FIT dostupný [zde](https://github.com/okurka12/ipk_proj1_livestream/blob/main/ipk_server.py)
-   Server dokáže komunikovat velice obdobným způsobem jako referenční fakultní server. Na každou zprávu posílá `CONFIRM` zprávy a každou odeslanou zprávu přepošle s jejím zněním zpět. Výhoda testování byla navíc, že `REPLY` zprávu poslal vždy z dynamického portu, kterému se následně klient musel přizpůsobit, aby mohl zprávu správně doručit zpět.
-
-   Příklad komunikace se jmenovaným serverem ze strany klienta:
-   ```sh
-   /auth xlogin00 topsecret Samik
-    Success: Hi, Samik, this is a successful REPLY message to your AUTH message id=0. You wanted to authenticate under the username xlogin00
-    ahoj, jak to jde?
-    Server: Hi, Samik, This is a reply MSG to your MSG id=1 content='ahoj, jak to jd...'
-    /join jinykanal
-    Success: Hi, Samik, this is a successful REPLY message to your JOIN message id=2. You wanted to join the channel jinykanal
-    ^C
+   0x0000: 00 15 5d a5 ba 2b 00 15 5d e7 8c 20 08 00 45 00  ..]..+.. ].. ..E.
+   0x0010: 00 5b 66 44 40 00 2d 06 1a 5b 8c 52 70 15 ac 1d  .[fD@.-. .[.Rp...
+   0x0020: 24 79 01 bb a4 6a cb 7b eb 08 4c ba 11 77 80 18  $y...j.{ ..L..w..
+   0x0030: 00 52 c5 e7 00 00 01 01 08 0a bf cd fd 89 6e 7b  .R...... ......n{
+   0x0040: 0f cb 17 03 03 00 22 f7 34 b3 83 f0 47 d7 95 f7  ......". 4...G...
+   0x0050: e9 77 d3 b9 0f b3 64 0d 0c 77 9a c4 ca b6 74 51  .w....d. .w....tQ
+   0x0060: e9 69 b4 55 aa 8a b1 ef 08                       .i.U.... .
    ```
 
-    Tabulka níže znázorňuje komunikaci, kterou vidí server:
-    ```
-    started server on 0.0.0.0 port 4567
+   Screenshot odchyceného paketu z programu Wireshark:
+   [Paket zachycený ve Wiresharku](image/Wireshark_TCP.png)
 
-    Message from 127.0.0.1:52002 came to port 4567:
-    TYPE: AUTH
-    ID: 0
-    USERNAME: 'xlogin00'
-    DISPLAY NAME: 'Samik'
-    SECRET: 'topsecret'
-    b'\x02\x00\x00xlogin00\x00Samik\x00topsecret\x00'
-    Confirming AUTH message id=0
-    sending REPLY with result=1 to AUTH msg id=0
+   Ze snímku lze vyčíst shodnost MAC adres, zdrojových a cílových portů, zdrojových a cílových MAC adres a počet zachycených bytů, test tedy proběhl úspěšně a síťový analyzátor úspešně detekoval TCP paket.
 
-    Message from 127.0.0.1:52002 came to port dyn2:
-    TYPE: CONFIRM
-    REF ID: 62889
-    b'\x00\xf5\xa9'
+2. Testování paketů protokolu ICMPv4
 
-    Message from 127.0.0.1:52002 came to port dyn2:
-    TYPE: MSG
-    ID: 1
-    DISPLAY NAME: 'Samik'
-    'ahoj, jak to jde?'
-    b'\x04\x00\x01Samik\x00ahoj, jak to jde?\x00'
-    Confirming MSG message id=1
-
-    Message from 127.0.0.1:52002 came to port dyn2:
-    TYPE: CONFIRM
-    REF ID: 25477
-    b'\x00c\x85'
-
-    Message from 127.0.0.1:52002 came to port dyn2:
-    TYPE: JOIN
-    ID: 2
-    DISPLAY NAME: 'Samik'
-    CHANNEL ID: 'jinykanal'
-    b'\x03\x00\x02jinykanal\x00Samik\x00'
-    Confirming JOIN message id=2
-    sending REPLY with result=1 to JOIN msg id=2
-
-    Message from 127.0.0.1:52002 came to port dyn2:
-    TYPE: CONFIRM
-    REF ID: 25430
-    b'\x00cV'
-
-    Message from 127.0.0.1:52002 came to port dyn2:
-    TYPE: BYE
-    ID: 3
-    b'\xff\x00\x03'
-    Confirming BYE message id=3
-    ```
-3. [Wireshark](https://www.wireshark.org/)
-
-    Pro zachycení komunikace mezi klientem a serverem byl rovněž použit program Wireshark s filtrací pro komunikaci UDP, kde byly díky rozšíření pro protokol IPK24-CHAT dobře vidět jednotlivé zprávy. Jako největší výhodu byla možnost zachytit správnou reakci klienta na dynamický port a jeho reakci. (Pro obrázky níže předpokládajme, že nejprve klient posíla zprávy na port 4567).
-    
-    ![Komunikace zachycená ve Wiresharku](image/wireshark1.jpg)
-
-    Na obrázku výše lze vidět zprávu `REPLY`, která přišla z dynamického portu 46719.
-
-
-    ![Komunikace zachycená ve Wiresharku](image/wireshark2.jpg)
-
-    Na obrázku výše lze vidět zprávu `CONFIRM`, která odchází na daný dynamický port 46719.
-
-4. Vlastní udp server
-   
-    Kvůli nemožnosti vlastní testování kombinace posílání zpráv a zároveň implementace čekání na TIMEOUT jednotlivých zpráv byl pro účely testování mnou vytvořen malý jednoduchý server v C++, který blokujícím způsobem čekal na zprávu a poté několik odesílal. Výhodou byla naprostá volnost v posílání zpráv (v daném binárním formátu). V tabulce níže je zachycena komunikace ze strany serveru (klasická posloupnost oveření a odeslání zprávy), kde je vždy v hex formátu vypsána příchozí a odchozí zpráva.
-
+   Cílem bylo otestovat, zdali síťový analyzátor správně zachytí ICMPv4 pakety na rozhraní `lo`. Na detekci tohoto paketu byl použit poměrně jednoduchý test a to příkaz `ping` na adresu lokálního rozhraní `127.0.0.1`. V takovém případě se na rozhraní vyskytují 2 druhy ICMPv4 paketů a to `ECHO REQUEST` a `ECHO REPLY`, které měl za úkol analyzátor zachytit.
+    Program byl pro testování spuštěn tímto příkazem:
     ```sh
-    UDP Server started on port 4567. Waiting for messages...
-    INCOMING Message in hex: 02 00 00 78 6c 6f 67 69 6e 30 30 00 73 75 73 65 6e 6b 61 00 74 6f 70 73 65 63 72 65 74 00
-
-    00 00 00 00
-    Sent hex message back to client.
-
-    01 00 05 01 00 00 6c 6c 00 00
-    Sent hex message back to client.
-
-    04 00 06 73 65 72 76 65 72 00 68 65 6c 6c 6c 00 00
-    Sent hex message back to client.
+    sudo ./ipk-sniffer -i lo --icmp4 -n 2
     ```
+    Výpis programu:
+      ```sh
+      timestamp: 2024-04-22T18:32:06.778+02:00
+      src MAC: 00:00:00:00:00:00
+      dst MAC: 00:00:00:00:00:00
+      frame length: 98
+      src IP: 127.0.0.1
+      dst IP: 127.0.0.1
+      packet type: ipv4 ICMP
+      icmp type: Echo request
+      icmp code: 0
 
+      0x0000: 00 00 00 00 00 00 00 00 00 00 00 00 08 00 45 00  ........ ......E.
+      0x0010: 00 54 60 89 40 00 40 01 dc 1d 7f 00 00 01 7f 00  .T`.@.@. ........
+      0x0020: 00 01 08 00 72 42 00 12 00 01 06 91 26 66 00 00  ....rB.. ....&f..
+      0x0030: 00 00 8e e0 0b 00 00 00 00 00 10 11 12 13 14 15  ........ ........
+      0x0040: 16 17 18 19 1a 1b 1c 1d 1e 1f 20 21 22 23 24 25  ........ .. !"#$%
+      0x0050: 26 27 28 29 2a 2b 2c 2d 2e 2f 30 31 32 33 34 35  &'()*+,- ./012345
+      0x0060: 36 37                                            67
 
+      timestamp: 2024-04-22T18:32:06.778+02:00
+      src MAC: 00:00:00:00:00:00
+      dst MAC: 00:00:00:00:00:00
+      frame length: 98
+      src IP: 127.0.0.1
+      dst IP: 127.0.0.1
+      packet type: ipv4 ICMP
+      icmp type: Echo reply
+      icmp code: 0
 
-5. Referenční fakultní server
+      0x0000: 00 00 00 00 00 00 00 00 00 00 00 00 08 00 45 00  ........ ......E.
+      0x0010: 00 54 60 8a 00 00 40 01 1c 1d 7f 00 00 01 7f 00  .T`...@. ........
+      0x0020: 00 01 00 00 7a 42 00 12 00 01 06 91 26 66 00 00  ....zB.. ....&f..
+      0x0030: 00 00 8e e0 0b 00 00 00 00 00 10 11 12 13 14 15  ........ ........
+      0x0040: 16 17 18 19 1a 1b 1c 1d 1e 1f 20 21 22 23 24 25  ........ .. !"#$%
+      0x0050: 26 27 28 29 2a 2b 2c 2d 2e 2f 30 31 32 33 34 35  &'()*+,- ./012345
+      0x0060: 36 37                                            67
+      ```
+
+   Screenshot odchyceného paketu z programu Wireshark:
+   [Paket zachycený ve Wiresharku](image/Wireshark_ICMP4.jpg)
+
+    Ze snímků lze mimo hodnot vyčtených i v předchozím testu (MAC adresy, IP adresy, ...) i druh ICMP zpráv, v jednom případě REQUEST a v jednom REPLY.
+
+3. Testování paketů protokolu ICMPv6
+
+    *ECHO REQUEST A REPLY*
+
+    V prvním testu bylo cílem otestovat, zdali síťový analyzátor správně zachytí ICMPv6 pakety na rozhraní `lo`. Na detekci tohoto paketu byl použit příkaz `ping` na ipv6 adresu lokálního rozhraní `::1`. V takovém případě se na rozhraní vyskytují 2 druhy ICMPv6 paketů a to `ECHO REQUEST` a `ECHO REPLY`, které měl za úkol analyzátor zachytit (stejně jako v případě icmpv4). 
+
+    Program byl pro testování spuštěn tímto příkazem:
+    ```sh
+    sudo ./ipk-sniffer -i lo --icmp6 -n 2
+    ```
+    Výpis programu:
+      ```sh
+      timestamp: 2024-04-22T18:44:30.548+02:00
+      src MAC: 00:00:00:00:00:00
+      dst MAC: 00:00:00:00:00:00
+      frame length: 118
+      src IP: ::1
+      dst IP: ::1
+      packet type: ipv6 ICMP
+      icmp6 type: Echo request
+      icmp6 code: 0
+      icmp6 checksum: 18306
+
+      0x0000: 00 00 00 00 00 00 00 00 00 00 00 00 86 dd 60 05  ........ ......`.
+      0x0010: 3e a0 00 40 3a 40 00 00 00 00 00 00 00 00 00 00  >..@:@.. ........
+      0x0020: 00 00 00 00 00 01 00 00 00 00 00 00 00 00 00 00  ........ ........
+      0x0030: 00 00 00 00 00 01 80 00 82 47 00 13 00 01 ee 93  ........ .G......
+      0x0040: 26 66 00 00 00 00 21 5b 08 00 00 00 00 00 10 11  &f....![ ........
+      0x0050: 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20 21  ........ ...... !
+      0x0060: 22 23 24 25 26 27 28 29 2a 2b 2c 2d 2e 2f 30 31  "#$%&'() *+,-./01
+      0x0070: 32 33 34 35 36 37                                234567
+
+      timestamp: 2024-04-22T18:44:30.548+02:00
+      src MAC: 00:00:00:00:00:00
+      dst MAC: 00:00:00:00:00:00
+      frame length: 118
+      src IP: ::1
+      dst IP: ::1
+      packet type: ipv6 ICMP
+      icmp6 type: Echo reply
+      icmp6 code: 0
+      icmp6 checksum: 18305
+
+      0x0000: 00 00 00 00 00 00 00 00 00 00 00 00 86 dd 60 08  ........ ......`.
+      0x0010: 08 1c 00 40 3a 40 00 00 00 00 00 00 00 00 00 00  ...@:@.. ........
+      0x0020: 00 00 00 00 00 01 00 00 00 00 00 00 00 00 00 00  ........ ........
+      0x0030: 00 00 00 00 00 01 81 00 81 47 00 13 00 01 ee 93  ........ .G......
+      0x0040: 26 66 00 00 00 00 21 5b 08 00 00 00 00 00 10 11  &f....![ ........
+      0x0050: 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20 21  ........ ...... !
+      0x0060: 22 23 24 25 26 27 28 29 2a 2b 2c 2d 2e 2f 30 31  "#$%&'() *+,-./01
+      0x0070: 32 33 34 35 36 37                                234567
+      ```
+
+   Screenshot odchyceného paketu z programu Wireshark:
+   [Paket zachycený ve Wiresharku](image/Wireshark_ICMP6.jpg)
+
+    Ze snímků lze mimo hodnot vyčtených i v předchozím testu (MAC adresy, IP adresy, ...) i druh ICMP zpráv, v jednom případě REQUEST a v jednom REPLY.
+
+    *NDP*
+
+    V druhém testu bylo cílem otestovat pakety typu `ndp`, které patří pod icmpv6. Zachytávání tentokrát probíhalo na rozhraní `eth0`. Pro poslání paketů na toto rozhraní použit python skript využivající knihovnu [Scapy](https://scapy.net/). Tento skript poslal paket NDP typu 135, tedy `neighbor solicitation` na multicastovou adresu `ff02::1:ff00:1` používanou právě pro zprávy tohoto typu a byl poslán ze zdrojové link local adresy rozhraní `eth0`.
+
+    Program byl pro testování spuštěn tímto příkazem:
+    ```sh
+    sudo ./ipk-sniffer -i eth0 --ndp
+    ```
+    Výpis programu:
+      ```sh
+      timestamp: 2024-04-22T19:04:19.45+02:00
+      src MAC: 00:15:5d:a5:ba:2b
+      dst MAC: 33:33:ff:a5:ba:2b
+      frame length: 86
+      src IP: fe80::215:5dff:fea5:ba2b
+      dst IP: ff02::1:ff00:1
+      packet type: ipv6 ICMP
+      icmp6 type: [NDP] Neighbor solicitation
+      icmp6 code: 0
+      icmp6 checksum: 581
+
+      0x0000: 33 33 ff a5 ba 2b 00 15 5d a5 ba 2b 86 dd 60 00  33...+.. ]..+..`.
+      0x0010: 00 00 00 20 3a ff fe 80 00 00 00 00 00 00 02 15  ... :... ........
+      0x0020: 5d ff fe a5 ba 2b ff 02 00 00 00 00 00 00 00 00  ]....+.. ........
+      0x0030: 00 01 ff 00 00 01 87 00 45 02 00 00 00 00 fe 80  ........ E.......
+      0x0040: 00 00 00 00 00 00 02 15 5d ff fe a5 ba 2b 01 01  ........ ]....+..
+      0x0050: 02 15 5d fe a5 ba                                ..]...
+      ```
+
+   Screenshot odchyceného paketu z programu Wireshark:
+   [Paket zachycený ve Wiresharku](image/Wireshark_NDP.jpg)
+
+    Na snímku je sice paketů spousta nicméně ten s více informaci odpovídá stejnému paketu, který zachytil síťový analyzátor se správným typem. 
+
+    *MLD*
+
+    Na MLD se mi nepovedlo správně sprovoznit skript a je tedy neotestováno.
+
+4. Testování paketů protokolu ARP
+
+   Cílem bylo otestovat, zdali síťový analyzátor správně zachytí pakety typu ARP na rozhraní `eth0`. Pro poslání paketů byl opět zvolen skript v jazyce Python verze 3, který na adresu `172.29.36.121` (ipv4 adresa eth0 rozhraní) poslal ARP dotaz (opět ze stejné adresy).
+
+   Program byl pro testování spuštěn tímto příkazem:
+    ```sh
+    sudo ./ipk-sniffer -i eth0 --arp
+    ```
+    Výpis programu:
+      ```sh
+      timestamp: 2024-04-22T19:15:57.366+02:00
+      src MAC: 00:00:00:00:00:00
+      dst MAC: ff:ff:ff:ff:ff:ff
+      frame length: 42
+      packet type: ARP
+      sender protocol address: 172.29.36.121
+      target protocol address: 172.29.36.121
+      ARP operation: REQUEST
+
+      0x0000: ff ff ff ff ff ff 00 00 00 00 00 00 08 06 00 01  ........ ........
+      0x0010: 08 00 06 04 00 01 00 00 00 00 00 00 ac 1d 24 79  ........ ......$y
+      0x0020: 00 00 00 00 00 00 ac 1d 24 79                    ........ $y
+      ```
+
+   Screenshot odchyceného paketu z programu Wireshark:
+   [Paket zachycený ve Wiresharku](image/Wireshark_ARP.jpg)
+
+    Paket ve Wiresharku se opět shoduje s výpisem síťového analyzátoru, jelikož při ARP dotazu není známá MAC adresa je poslán jako broadcast, tedy lze vidět např. pro něj specifickou adresu, rovněž je u ARP správně rozpoznán a vytisknut typ (ve Wiresharku je vidět i jako "Who has 172.29.36.121").
+
+5. Testování paketů protokolu IGMP
    
-    Jako poslední možnost testů byl zvolen fakultní referenční server, na kterém probíhalo tesstování obdobně jako u TCP varianty, server se chová korektně v souladu se zadáním, proto nebylo možné otestovat TIMEOUT na zprávy a podobné věci.
+   Cílem bylo otestovat, zdali síťový analyzátor správně zachytí pakety typu IGMO na rozhraní `lo`. Pro poslání paketů byl opět zvolen skript v jazyce Python verze 3, který na ipv4 adresu localhost poslal IGMP paket typu `IGMPv2 membership report` se skupinovou adresou `224.0.0.1`, což je adresa pro multicast.
+
+   Program byl pro testování spuštěn tímto příkazem:
+    ```sh
+    sudo ./ipk-sniffer -i lo --igmp
+    ```
+    Výpis programu:
+      ```
+      timestamp: 2024-04-22T19:28:56.235+02:00
+      src MAC: 00:00:00:00:00:00
+      dst MAC: 00:00:00:00:00:00
+      frame length: 42
+      src IP: 127.0.0.1
+      dst IP: 127.0.0.1
+      packet type: IGMP
+      igmp type: membership report version 2
+      igmp routing code: 0
+      igmp group address: 224.0.0.1
+
+      0x0000: 00 00 00 00 00 00 00 00 00 00 00 00 08 00 45 00  ........ ......E.
+      0x0010: 00 1c 16 9c 40 00 40 02 26 42 7f 00 00 01 7f 00  ....@.@. &B......
+      0x0020: 00 01 16 00 fe 09 e0 00 00 01                    ........ ..
+      ```
+
+   Screenshot odchyceného paketu z programu Wireshark:
+   [Paket zachycený ve Wiresharku](image/Wireshark_IGMP.jpg)
+
+    Paket ve Wiresharku má tentokrát červené políčko IGMP, jelikož skript má chybný výpočet kontrolní sumy (nedůležité v kontextu odchycení správného typu, jelikož nám nejde o validitu těchto dat). Kromě této maličkosti se ovšem výstupy opět shodují.
 
 
 ## Možná vylepšení
-Chatovací klient není dokonalý a obsahuje několik věcí, které by mohly být v budocnu vylepšeny, mezi ně patří například:
+Síťový analyzátor není dokonalý a obsahuje několik věcí, které by mohly být v budocnu vylepšeny, mezi ně patří například:
 
-* Vylepšení mechanismu timeoutů, kdy doba do vypršení timeoutu aktuálně nereflektuje skutečnou dobu, pokud před zprávou CONFIRM dorazí jiná zpráva
-* Refaktorizace kódu, kdy je možné více sjednotit funkce pro hlavní logiku jak TCP tak UDP klienta, vyčlenění funkcí do dalších tříd (logika zpracovávání zpráv)
-* Přídání dalších podporovaných příkazů
-* Přidání časového razítka při odeslaných a přijatých zprávách
-* 
+* Síťový analyzátor umí pracovat pouze s ethernetovými rámci
+* Výpisy by mohly být barevně laděné (lepší přehlednost mezi různými informacemi)
+* K výpisům by mohl být přidán celkový počet zpracovaných paketů
+* Otestování MLD paketů
+
 ## Zdroje
 - [RFC3339] KLYNE, G. Date and Time on the Internet: Timestamps. [online]. Říjen 2002. [cit. 2024-04-22]. DOI: 10.17487/RFC3339. Dostupné z: https://datatracker.ietf.org/doc/html/rfc3339
 - [RFC5952] KAWAMURA, Seiichi a Masanobu KAWASHIMA. A Recommendation for IPv6 Address Text Representation. [online]. Srpen 2010. [cit. 2024-04-22]. DOI: 10.17487/RFC5952. Dostupné z: https://datatracker.ietf.org/doc/html/rfc5952
