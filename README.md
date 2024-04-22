@@ -22,7 +22,8 @@
     - [Zachytávání paketů a výpis informací](#zachytávání-paketů-a-výpis-informací)
     - [Ukončení programu](#ukončení-programu)
   - [Testování programu](#testování-programu)
-    - [TCP klient](#tcp-klient)
+    - [Testování zpracování argumentů](#testování-zpracování-argumentů)
+    - [Test správné dealokace paměti po ukončení programu s CTRL + C](#test-správné-dealokace-paměti-po-ukončení-programu-s-ctrl--c)
     - [UDP klient](#udp-klient)
   - [Možná vylepšení](#možná-vylepšení)
   - [Zdroje](#zdroje)
@@ -56,6 +57,7 @@ Ten lze následně spustit s následujícími parametry:
 | `--mld`                   |                       | Parametr MLD           | Filtrování mld paketů (část ICMPv6)                           |
 | `--igmp`                  |                       | Parametr IGMP          | Filtrování igmp paketů                                        |
 | `-n`                      | Od uživatele/chybí*** | Počet paketů           | Při zapnutí programu analyzuje zadaný počet paketů            |
+| `--filter`                |                       | Parametr pro výpis     | Při zapnutí programu vypíše řetězec aplikovaný na filtr paketů|
 | `-h`                      |                       | Nápověda               | Vypíše nápovědu a skončí program.                             |
 
 Všechny argumenty lze zadat v jakémkoliv pořadí a akceptovaná čísla v argumentech jsou celá čísla (pro port v rozmezí 0 až 65535 a pro n číslo větší nebo rovno 0). Pro spuštění analyzátoru paketl je nutné specifikovat rozhraní, na kterém bude pracovat. (Výpis rozraní viz Pozn. *).
@@ -129,90 +131,184 @@ Samotné zachytávání paketů na daném rozhraní probíhá pomocí funkce `pc
 Ukončení programu během analýzy paketů je realizováno pomocí příkazu CTRL-C. V takovém případě se volá funkce `graceful_exit`, která dealokuje paměť pro síťový analyzátor a program ukončí. Pokud během tvorby analyzátoru nebo jeho nastavení došlo k chybě, je vypsána chybová hláška a program ukončen již v daném okamžiku.
 
 ## Testování programu
-Testování probíhalo po celou dobu vývoje programu. Zahrnovalo jak kontrolu úniků paměti a původce neoprávněního přístupu do ní (pomocí funkce `valgrind`), tak nástroje díky kterým bylo možné dívat se na odeslané a přijaté zprávy klienta. Mezi testovací software patřily jak specializované nástroje (`netcat`, `wireshark`), tak např. referenční fakultní server nebo vlastní udp server. Všechny testy byly spouštěny na systému Ubuntu, který běžel v rámci `WSL 2` pod systémem Windows. Všechny příklady testů používají stejnou takřka sadu příkazů, jímž je ověření, poslání zprávy a ukončení spojení.
+Testování probíhalo po celou dobu vývoje programu. Zahrnovalo jak kontrolu úniků paměti a původce neoprávněního přístupu do ní (pomocí funkce `valgrind`), tak kontrolu správnosti výpisu informací paketů primárně pomocí porovnání výstupu s informacemi v programu [Wireshark](https://www.wireshark.org/) nebo kontrolu vstupních argumentů. Testování bylo prováděno v systému WSL (Windows Subsystem for Linux) s distribucí Ubuntu 22.04.3 LTS.
 
-### TCP klient
-Testování TCP klienta bylo o něco jednodušší než testování UDP klienta a to díky  tomu, že zprávy mezi serverem a klientem chodí v normální textové podobě, tak jak ji známe. Testování TCP klienta probíhalo přes:
+### Testování zpracování argumentů
+Při testování argumentů byl důraz primárně na vytvořený řetězec následně vkládaný do filtru (čímž dojde ke kontroly většiny argumentů) a kontrola validního formátu čísel popřípadě kombinace argumentů.
 
-1. [Netcat](https://netcat.sourceforge.net/) spuštěný na loopback rozhraní
+1. Korektní spuštění programu s náhodnými validní argumenty
 
-    Testování pomocí netcatu pobíhalo tak, že v jednom terminálu byl spuštěn server (simulován právě pomocí netcatu) a v druhém terminálu byl spuštěn klient, který se na daný server připojil. Komunikace následně probíhala ručně, kdy byl na klientovi zadán příkaz nebo poslána zpráva a na netcatu byla ručně zadána odpověď. Tímto způsobem bylo možné otestovat vše, co TCP funkcionalita vyžadovala, jen bylo zdlouhavé psát zprávy od serveru ve správném formátu.
+   Cílem bylo otestovat, zdali je filtr vytvořen se správnými filtrovacími parametry.
+   Rozhraní `lo` bylo vybráno z dostupných rozhraní.
 
-    Server byl spuštěn tímto příkazem:
+    Program byl spuštěn tímto příkazem:
     ```sh
-    nc -4 -C -l -v 127.0.0.1 4567
+    sudo ./ipk-sniffer -i lo -t --udp -p 23 --igmp --icmp6 --arp --filter
     ```
-    Klient byl spuštěn pomocí tohoto příkazu
+    Výpis programu:
     ```sh
-    ./ipk24chat-client -t tcp -s localhost -p 4567
+    filter arguments: ((tcp or udp) and port 23) or arp or icmp6 and (ip6[40] == 128 or ip6[40] == 129) or igmp
     ```
-
-    V následující tabulce je zachycena komunikace mezi klientem a serverem ze strany klienta:
-    ```sh
-    /auth xlogin00 topsecret Samik
-    Success: v poradku
-    jsem overeny uzivatel
-    /join jinykanal
-    ahoj
-    Failure: nepripojim te
-    ^C
-    ```
-
-    V následující tabulce je komunikace zachycena pomocí ze strany serveru:
-    ```sh
-    Listening on localhost 4567
-    Connection received on localhost 49096
-    AUTH xlogin00 AS Samik USING topsecret
-    REPLy OK is v poradku
-    MSG FROM Samik IS jsem overeny uzivatel
-    JOIN jinykanal AS Samik
-    REPLY nok is nepripojim te
-    MSG FROM Samik IS ahoj
-    BYE
-    ```
-    Lze si všimnout, že zpráva ahoj zadána ihned po zprávě `JOIN` dorazila až poté, co server na zprávu odpověděl. Poté co se klient rozhodl ukončit spojení, které realizoval přes CTRL-C poslal ještě serveru zprávu `BYE`. Za zmínku také stojí, že server může poslat klíčová slova zprávy malými písmeny v souladu s gramatikou v zadání projektu.
-
-    Jako speciální případy u testování pomocí netcatu jsem vybral:
-    - případ, kdy zadá uživatel příkaz který neexistuje
-    - délka jednoho z parametrů příkazu přesáhne určité hodnoty.
-    - opětovná snaha o autorizaci po již úspěšně ověřené předešlé autorizace
+    Je tedy vidět, že ve filtru jsou správně přidané argumenty zadané ze vstupu, které reflektují daný protokol i konkrétní specifický typ, konkrétně protokoly `TCP` a `UDP` v logické spojce `OR` a zároveň port 23, který může být odchozí i zdrojový. Mezi zbytkem argumentů opět platí logická spojka `OR` a u icmp6 lze ještě vidět filtrování pro konkrétní typy `ECHO REQUEST` a `ECHO REPLY`. Program následně bylo nutné ukončit pomocí CTRL+C, jelikož hledal pakety shodující se s daným filtrem.
 
 
-    Všechny tyto případy jsou zachyceny v tabulce níže:
-    ```sh
-    /auth xhejni00 topsecret Samik
-    Success: ok
-
-    /prikaz
-    ERR: Wrong command. Type /help for help
-
-    /join Makovapanenkamelakobedusushismedvedem
-    ERR: Wrong command syntax. Usage: /join {ChannelID}
-
-    /auth xhejni00 topsecret Samik
-    ERR: Already authorized.
-    ```
-    U žádného z příkazů nedojde k ukončení klienta, dojde pouze k vypsání chybové hlášky a je očekáváno opětovné zadání zprávy/příkazu, tedy v soulaldu se zadáním.  
-
-
-2. Referenční server  
+2. Spuštění programu bez argumentů
    
-    Jako druhou možnost jak testovat projekt byl zvolen referenční fakultní server s doménovým jménem `anton5.fit.vutbr.cz`. Jeho výhodou oproti testování přes netcat je, že zprávy posílá automaticky a taky lze v reálném čase skutečně komunikovat s ostatními uživateli na tomto serveru.
+    Cílem bylo otestovat korektní výpis dostupných rozhraní a následné ukončení programu.
 
-    Na následující tabulce je zachycena kominikace na referenčním TCP serveru:
+    Program byl spuštěn postupně takto:
     ```sh
-    /auth xlogin00 topsecret susenka
-    Success: Authentication successful.
-    Server: susenka joined discord.general.
-    Server: jani joined discord.general.
-    ahoj
-    jani: ahoj
-    /join jinam
-    Success: Channel jinam successfully joined.
-    ^C
+    sudo ./ipk-sniffer -i
     ```
-    Testování na referenčním serveru bylo prováděno až ke konci projektu, jelikož testování přes locální netcat server bylo dostačující a nehrozilo, že bude server přehnaně zatížen kvůli možné chybě v kódu (while true loop).
+    ```sh
+    sudo ./ipk-sniffer
+    ```
+    Výpis programu:
+    ```sh
+    List of available network interfaces:
+    1. interface: eth0
+    2. interface: any, Description: Pseudo-device that captures on all interfaces
+    3. interface: lo
+    4. interface: docker0
+    5. interface: bluetooth-monitor, Description: Bluetooth Linux Monitor
+    6. interface: nflog, Description: Linux netfilter log (NFLOG) interface
+    7. interface: nfqueue, Description: Linux netfilter queue (NFQUEUE) interface
+    8. interface: dbus-system, Description: D-Bus system bus
+    9. interface: dbus-session, Description: D-Bus session bus
+    ```
+    V obou případech byl výpis správný, tedy síťový analyzátor vypsal dostupná síťová rozhraní a ukončil svou činnost.
 
+3.  Spuštění programu s nevalidními argumenety
+   
+    Cílem bylo celkem 2krát otestovat korektní pád programu včetně absenci úniků paměti (tedy správně dealokace).
+
+    Spuštění programu č. 1 s následujícími parametry
+    ```sh
+    sudo ./ipk-sniffer -p 80
+    ```
+    Výpis programu:
+    ```sh
+    ==707456== Memcheck, a memory error detector
+    ==707456== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+    ==707456== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+    ==707456== Command: ./ipk-sniffer -p 80
+    ==707456==
+    ERR: [ARGPARSER] Port cant be specified without TCP or UDP.
+
+    ==707456==
+    ==707456== HEAP SUMMARY:
+    ==707456==     in use at exit: 0 bytes in 0 blocks
+    ==707456==   total heap usage: 2 allocs, 2 frees, 93 bytes allocated
+    ==707456==
+    ==707456== All heap blocks were freed -- no leaks are possible
+    ==707456==
+    ==707456== For lists of detected and suppressed errors, rerun with: -s
+    ==707456== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+    ```
+    Z výpisu lze vyčíst, že nedochází k únikům paměti a dle očekávání je vypsána chybová hlaška, jelikož parametr `port` nemůže být zadán bez parametrů `TCP` či `UDP`.
+
+    Spuštění programu č. 2 s následujícími parametry
+    ```sh
+    sudo valgrind ./ipk-sniffer --tcp -p 80000
+    ```
+      Výpis programu:
+    ```sh
+    ==708605== Memcheck, a memory error detector
+    ==708605== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+    ==708605== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+    ==708605== Command: ./ipk-sniffer --tcp -p 80000
+    ==708605==
+    ERR: [ARGPARSER] Invalid number in port. Range is 0 - 65535.
+
+    ==708605==
+    ==708605== HEAP SUMMARY:
+    ==708605==     in use at exit: 0 bytes in 0 blocks
+    ==708605==   total heap usage: 2 allocs, 2 frees, 93 bytes allocated
+    ==708605==
+    ==708605== All heap blocks were freed -- no leaks are possible
+    ==708605==
+    ==708605== For lists of detected and suppressed errors, rerun with: -s
+    ==708605== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+    ```
+    Z výpisu lze vyčíst, že nedochází k únikům paměti a dle očekávání je vypsána chybová hlaška, jelikož parametr `port` je zadán mimo platné rozmezí.
+
+### Test správné dealokace paměti po ukončení programu s CTRL + C
+Cílem tohoto testu bylo zkontrolovat nepřítomnost úniků paměti při spuštění programu s validními argumenty následně odchytit několik paketů (zachytávání probíhalo "do nekonečna, tedy parametr n byl roven nule") a skončit pomocí klávesové zkratky CTRL + C.
+
+  Program byl spuštěn následovně:
+  ```sh
+  sudo valgrind ./ipk-sniffer --tcp -i eth0 -n 0
+  ```
+  Výpis programu:
+  ```sh
+    ==711773== Memcheck, a memory error detector
+    ==711773== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+    ==711773== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+    ==711773== Command: ./ipk-sniffer -i eth0 -n 3
+    ==711773==
+    timestamp: 2024-04-22T17:25:09.882+02:00
+    src MAC: 00:15:5d:e7:8c:20
+    dst MAC: 01:00:5e:00:00:fb
+    frame length: 87
+    src IP: 172.29.32.1
+    dst IP: 224.0.0.251
+    packet type: ipv4 UDP
+    src port: 5353
+    dst port: 5353
+
+    0x0000: 01 00 5e 00 00 fb 00 15 5d e7 8c 20 08 00 45 00  ..^..... ].. ..E.
+    0x0010: 00 49 58 10 00 00 ff 11 b6 79 ac 1d 20 01 e0 00  .IX..... .y.. ...
+    0x0020: 00 fb 14 e9 14 e9 00 35 01 59 00 00 00 00 00 01  .......5 .Y......
+    0x0030: 00 00 00 00 00 00 10 5f 73 70 6f 74 69 66 79 2d  ......._ spotify-
+    0x0040: 63 6f 6e 6e 65 63 74 04 5f 74 63 70 05 6c 6f 63  connect. _tcp.loc
+    0x0050: 61 6c 00 00 0c 00 01                             al.....
+
+    timestamp: 2024-04-22T17:25:09.884+02:00
+    src MAC: 00:15:5d:e7:8c:20
+    dst MAC: 33:33:00:00:00:fb
+    frame length: 107
+
+    0x0000: 33 33 00 00 00 fb 00 15 5d e7 8c 20 86 dd 60 03  33...... ].. ..`.
+    0x0010: 35 e1 00 35 11 ff fe 80 00 00 00 00 00 00 ed 1b  5..5.... ........
+    0x0020: cc f5 c1 47 cc 21 ff 02 00 00 00 00 00 00 00 00  ...G.!.. ........
+    0x0030: 00 00 00 00 00 fb 14 e9 14 e9 00 35 68 79 00 00  ........ ...5hy..
+    0x0040: 00 00 00 01 00 00 00 00 00 00 10 5f 73 70 6f 74  ........ ..._spot
+    0x0050: 69 66 79 2d 63 6f 6e 6e 65 63 74 04 5f 74 63 70  ify-conn ect._tcp
+    0x0060: 05 6c 6f 63 61 6c 00 00 0c 00 01                 .local.. ...
+
+    timestamp: 2024-04-22T17:25:10.108+02:00
+    src MAC: 00:15:5d:e7:8c:20
+    dst MAC: 01:00:5e:7f:ff:fa
+    frame length: 167
+    src IP: 172.29.32.1
+    dst IP: 239.255.255.250
+    packet type: ipv4 UDP
+    src port: 51853
+    dst port: 1900
+
+    0x0000: 01 00 5e 7f ff fa 00 15 5d e7 8c 20 08 00 45 00  ..^..... ].. ..E.
+    0x0010: 00 99 4c ea 00 00 ff 11 b2 50 ac 1d 20 01 ef ff  ..L..... .P.. ...
+    0x0020: ff fa ca 8d 07 6c 00 85 43 48 4d 2d 53 45 41 52  .....l.. CHM-SEAR
+    0x0030: 43 48 20 2a 20 48 54 54 50 2f 31 2e 31 0d 0a 48  CH * HTT P/1.1..H
+    0x0040: 4f 53 54 3a 20 32 33 39 2e 32 35 35 2e 32 35 35  OST: 239 .255.255
+    0x0050: 2e 32 35 30 3a 31 39 30 30 0d 0a 4d 41 4e 3a 20  .250:190 0..MAN:
+    0x0060: 22 73 73 64 70 3a 64 69 73 63 6f 76 65 72 22 0d  "ssdp:di scover".
+    0x0070: 0a 4d 58 3a 20 31 0d 0a 53 54 3a 20 75 72 6e 3a  .MX: 1.. ST: urn:
+    0x0080: 64 69 61 6c 2d 6d 75 6c 74 69 73 63 72 65 65 6e  dial-mul tiscreen
+    0x0090: 2d 6f 72 67 3a 73 65 72 76 69 63 65 3a 64 69 61  -org:ser vice:dia
+    0x00a0: 6c 3a 31 0d 0a 0d 0a                             l:1....
+
+    ^C==711773==
+    ==711773== HEAP SUMMARY:
+    ==711773==     in use at exit: 0 bytes in 0 blocks
+    ==711773==   total heap usage: 33 allocs, 33 frees, 18,880 bytes allocated
+    ==711773==
+    ==711773== All heap blocks were freed -- no leaks are possible
+    ==711773==
+    ==711773== For lists of detected and suppressed errors, rerun with: -s
+    ==711773== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+  ```
+  Výpis ukazuje korektní dealokaci paměti i po několika odchycených paketech.
 
 ### UDP klient
 Testování UDP klienta bylo mnohem kompikovanější než u TCP, jelikož posílání zpráv je realizováno v binární podobě, a tak není možné snadno odpovídat zpět například pomocí netcat serveru a navíc je potřeba při nastaveném socket timeoutu odpovědět včas jinak je možné snadno dosáhnout limitu pro timeout a dojít tak u končení klienta. Přesto bylo realizováno několik možností jak spojení testovat.
