@@ -31,11 +31,11 @@
 
 ## Úvod
 
-Tento soubor je dokumentací k druhému projektu do předmětu [IPK], Počítačové komunikace a sítě, veškeré zdrojové soubory jsou dostupné [zde](https://git.fit.vutbr.cz/xhejni00/IPK_Project_2). Projekt je napsán jazyce C (standardu GNU99) a určen pro platformu Linux. 
+Tento soubor je dokumentací k druhému projektu do předmětu [IPK], Počítačové komunikace a sítě, veškeré zdrojové soubory jsou dostupné [zde](https://git.fit.vutbr.cz/xhejni00/IPK_Project_2). Projekt je napsán jazyce C (standardu GNU99) a určen pro platformu Linux specificky Ubuntu. 
 
 ### Stručný popis
 
-Program slouží jako síťový analyzátor paketů na uživatelsky specifikovaném rozhraní (podporována pouze rozhraní typu Ethernet). Pakety na daném rozhraní zachytává dle uživatelem zadaného filtru (v podobě argumentů při spuštění programu) a vypíše o nich [užitečné informace](#vypisované-informace). Počet paketů, který analyzátor zachytí a vypíše je rovněž dán argumentem. Program končí po stisknutí CTRL+C nebo pokud dosáhl zachycení daného počtu paketů.
+Program slouží jako síťový analyzátor paketů na uživatelsky specifikovaném rozhraní (podporována pouze rozhraní typu Ethernet). Pakety na daném rozhraní zachytává dle uživatelem zadaného filtru (v podobě argumentů při spuštění programu) a vypíše o nich [užitečné informace](#vypisované-informace). Počet paketů, který analyzátor zachytí a vypíše je rovněž dán argumentem. Program končí po stisknutí CTRL+C nebo pokud dosáhl zachycení daného počtu paketů (popřípadě neúspěšně v případě výskytu chyby).
 
 ### Spuštění programu
 
@@ -60,7 +60,7 @@ Ten lze následně spustit s následujícími parametry:
 | `--filter`                |                       | Parametr pro výpis     | Při zapnutí programu vypíše řetězec aplikovaný na filtr paketů|
 | `-h`                      |                       | Nápověda               | Vypíše nápovědu a skončí program.                             |
 
-Všechny argumenty lze zadat v jakémkoliv pořadí a akceptovaná čísla v argumentech jsou celá čísla (pro port v rozmezí 0 až 65535 a pro n číslo větší nebo rovno 0). Pro spuštění analyzátoru paketl je nutné specifikovat rozhraní, na kterém bude pracovat. (Výpis rozraní viz Pozn. *).
+Všechny argumenty lze zadat v jakémkoliv pořadí a akceptovaná čísla v argumentech jsou celá čísla (pro port v rozmezí 0 až 65535 a pro n číslo větší nebo rovno 0). Pro spuštění analyzátoru paketů je nutné specifikovat rozhraní, na kterém bude pracovat. (Výpis rozraní viz Pozn. *).
 
 Pozn. * Pokud rozhraní není specifikováno, je vypsán seznam dostupných rozhraní a program ukončen (rovněž v případě spustění programu bez argumentů).
 
@@ -78,13 +78,13 @@ Příklad (analyzátor pracuje na rozhraní eth0 a sleduje vešekeré pakety s o
 
 U každého zachycecného paketu, který prošel uživatelsky zadanám filtrem (filtr mohl být prázdný) jsou vypsány následující informace:
 
-* `časová známka` ve formátu RFC 3339
+* `časová známka` ve formátu RFC 3339 [1]
 * `zdrojová a cílová MAC adresa` jako řetězec, jednotlivé části adresy jsou oddělené dvojtečkou
 * `délka rámce`v bytech
-* `data paketu` v hexadecimální a ascii podobě kopírující vzhled používající aplkace [Wireshark](https://www.wireshark.org/)
+* `data paketu` v hexadecimální a ASCII podobě napodobující vzhled, který používá aplkace [Wireshark](https://www.wireshark.org/)
 
 Pokud existují:
-* `zdrojová a cílová ip adresa` jako řetězec, pokud jde o ipv4 je vypsána v "dotted decimal" podobě, v případě ipv6 je vypsána v souladu s RFC 5952
+* `zdrojová a cílová ip adresa` jako řetězec, pokud jde o ipv4 je vypsána v "dotted decimal" podobě, v případě ipv6 je vypsána v souladu s RFC 5952 [2]
 * `zdrojový a cílový port` jako celé číslo
 
 Specifické pro daný protokol:
@@ -93,21 +93,21 @@ Specifické pro daný protokol:
 ## Stručná teorie k programu
 
 ### ISO/OSI Model a průzkum paketů
-Dle síťového modelu OSI můžeme síťovou komunikaci rozdělit na celkem 7 vrstev. Pro síťový analyzátor je důležitá hlavně 2. vrstva (linková), 3. vrstva (síťová) a 4. vrstva (transportní). Uživatelská data poslána po síti prochází zapouzdřením, kdy se na každé vrstvě přidá odpovídající hlavička protokolu (např. TCP nebo IP) podle typu dat a způsobu komunikace a tento proces postupuje od aplikační vrstvy až po fyzicku vrstvu, na které dochází k přenosu dat. U paketu (jednotka dat přenášená přes síťové rozhraní), který zachytí síťový analyzátor se postupuje opačným směrem, tedy nejprve je rozbalena hlavička Ethernetu na datalinkové vrstvě (z ní lze vyčíst například zdrojovou a cílovou MAC adresu) a následně se postupuje dále k hlavičce IP (z ní lze vyčíst např. zdrojovou a cílovou IP adresu) na třetí síťovou vrstvu, proces dále postupuje do vyšších vrstev. Tímto postupným "rozbalováním" dochází k průzkumu vlastností paketu. Postupná dekapsulace směrem od ethernetové vrstvy k vyšším je nutná, jelikož právě např. protokol TCP operuje na transportní vrstvě zatímco třeba protokol ARP na vrstvě linkové.
+Dle síťového modelu OSI můžeme síťovou komunikaci rozdělit na celkem 7 vrstev. Pro síťový analyzátor je důležitá hlavně 2. vrstva (linková), 3. vrstva (síťová) a 4. vrstva (transportní). Uživatelská data poslána po síti prochází zapouzdřením, kdy se na každé vrstvě přidá odpovídající hlavička protokolu (např. TCP nebo IP) podle typu dat a způsobu komunikace a tento proces postupuje od aplikační vrstvy až po fyzicku vrstvu, na které dochází k přenosu dat. U paketu (jednotka dat přenášená přes síťové rozhraní), který zachytí síťový analyzátor se postupuje opačným směrem, tedy nejprve je rozbalena hlavička Ethernetu na datalinkové vrstvě (z ní lze vyčíst například zdrojovou a cílovou MAC adresu) a následně se postupuje dále k hlavičce IP (z ní lze vyčíst např. zdrojovou a cílovou IP adresu) na třetí síťovou vrstvu, proces dále postupuje do vyšších vrstev. Tímto postupným "rozbalováním" dochází k průzkumu vlastností paketu. Postupné rozbalování směrem od ethernetové vrstvy k vyšším je nutná, jelikož právě např. protokol TCP operuje na transportní vrstvě zatímco třeba protokol ARP na vrstvě linkové. [3][4]
 
 ### PCAP knihovna
-Jako knihovna poskytující vysokoúrovňové rozhraní pro zachytávání paketů byla použita knihovna PCAP. Tato knihovna nabízí všekeré potřebné funkce včetně vytvoření a spravování analyzátoru včetně jeho provozu v reálném čase. Její rozhraní umožňuje zachytit i pakety určené pro jiné cílové hosty a umožňuje číst a a zapisovat zachycené pakety ze/do souboru.
+Jako knihovna poskytující vysokoúrovňové rozhraní pro zachytávání paketů byla použita knihovna PCAP. Tato knihovna nabízí všekeré potřebné funkce včetně vytvoření a spravování analyzátoru včetně jeho provozu v reálném čase. Její rozhraní umožňuje zachytit i pakety určené pro jiné cílové hosty a umožňuje číst a a zapisovat zachycené pakety ze/do souboru. [5][6]
 
 ### Zachytávané protokoly
-* `TCP` - Protokol transportní vrstvy používán na spojovaný a spolehlivý přenost dat. Zprávy odeslané a příjmané mezi zařízeními dorazí ve stejném pořadí jako byly odeslány. Spojení zajišťuje pomocí 3-way handshake mechanismu. 
+* `TCP` - Protokol transportní vrstvy používán na spojovaný a spolehlivý přenost dat. Zprávy odeslané a příjmané mezi zařízeními dorazí ve stejném pořadí jako byly odeslány. Spojení zajišťuje pomocí 3-way handshake mechanismu. [7]
   
-* `UDP` - Protokol transportní vrstvy nezajišťující spolehlivou výměnu dat. Není zaručeno pořadí paketů ani to, že dorazí v pořádku.
+* `UDP` - Protokol transportní vrstvy nezajišťující spolehlivou výměnu dat. Není zaručeno pořadí paketů ani to, že dorazí v pořádku. [8]
   
-* `ICMPv4 a ICMPv6` - Komunikační protokoly sloužící k odesílání komunikačních a chybových zpráv mezi zařízeními. Všechny zprávy mají svůj typ, kteý indentifikuje jejich obsah. Patří sem rovněž i pakety typu `NDP` a `MLD`, které jsou specifikovány právě jmenovaným typem (např. MLD používá hodnoty 130, 131, 132 a 143).
+* `ICMPv4 a ICMPv6` - Komunikační protokoly sloužící k odesílání komunikačních a chybových zpráv mezi zařízeními. Všechny zprávy mají svůj typ, kteý indentifikuje jejich obsah. Patří sem rovněž i pakety typu `NDP` a `MLD`, které jsou specifikovány právě jmenovaným typem (např. MLD používá hodnoty 130, 131, 132 a 143). [9]
   
-* `ARP` - Komunikační protokol sloužící k získání linkové adresy (v případě tohoto analyzátoru MAC adresy, tedy fyzické adresy počítače) pomocí známe IP adresy.
+* `ARP` - Komunikační protokol sloužící k získání linkové adresy (v případě tohoto analyzátoru MAC adresy, tedy fyzické adresy počítače) pomocí známe IP adresy. [11]
   
-* `IGMP` - Protokol síťové vrstvy umožňující několika zařízením sdílet stejnou IP adresu, aby tato zařízení mohla příjmat stejná data (tedy používá podporu multicastu). Zařízení se připojují a odpoujují z tzv. multicastových skupin, která má sdílenou IP adresu.
+* `IGMP` - Protokol síťové vrstvy umožňující několika zařízením sdílet stejnou IP adresu, aby tato zařízení mohla příjmat stejná data (tedy používá podporu multicastu). Zařízení se připojují a odpoujují z tzv. multicastových skupin, které mají sdílenou IP adresu. [10]
 
 ## Implementace projektu
 
@@ -122,7 +122,7 @@ Projekt je rozdělen do několik zdrojových souborů.
 Na začátku programu dochází ke zpracování argumentů od uživatele pomocí funkce `parse_args` a jejich uložení do specifické struktury. Pokud nebyly zadány žádné argumenty nebo byl zadán pouze argument pro rozhraní bez jeho hodnoty, je vypsán seznam dostupných rozhraní a program úspěšně ukončen. V případě zadání chybné hodnoty argumentu například příliš vysokého čísla portu nebo přímo neznámého argumentu je program rovněž ukončen, nýbrž s chybou.
 
 ### Nastavení analyzátoru paketů
-Po zpracování argumentů dochází k zavolání funkce `sniff`, která má na starost veškerou činnost okolo analyzátoru. Ta nejprve zavolá pomocnou funkci `create_pcap_sniffer`, která vytvoří a aktivuje zmíněný analyzátor a zkontroluje, že datová linka je typu `ethernet` (jiná není podporována). Následně je volána funkce `apply_pcap_filter`, která ze vstupních argumentů uložených ve specifické datové struktuře vytvoří řetězec pravidel, která vloží do filtru, který je použit pro analyzátor.
+Po zpracování argumentů dochází k zavolání funkce `sniff`, která má na starost veškerou činnost okolo analyzátoru. Ta nejprve zavolá pomocnou funkci `create_pcap_sniffer`, která vytvoří a aktivuje zmíněný analyzátor (např. funkce `pcap_open_live`) a zkontroluje, že datová linka je typu `ethernet` (jiná není podporována). Následně je volána funkce `apply_pcap_filter`, která ze vstupních argumentů uložených ve specifické datové struktuře vytvoří řetězec pravidel, která vloží do filtru, který je použit pro analyzátor (funkce `pcap_setfilter`).
 
 ### Zachytávání paketů a výpis informací
 Samotné zachytávání paketů na daném rozhraní probíhá pomocí funkce `pcap_loop`, které lze rovnou specifikovat i počet paketů k odchycení. Tato funkce při zachycení paketu v volá funkci `packet_parser`, která již z paketu extrahuje konkrétní informace od časového razítka po zdrojový či cílový port (a další) a zajistí výpis těchto informací na standardní výstup.
@@ -131,7 +131,7 @@ Samotné zachytávání paketů na daném rozhraní probíhá pomocí funkce `pc
 Ukončení programu během analýzy paketů je realizováno pomocí příkazu CTRL-C. V takovém případě se volá funkce `graceful_exit`, která dealokuje paměť pro síťový analyzátor a program ukončí. Pokud během tvorby analyzátoru nebo jeho nastavení došlo k chybě, je vypsána chybová hláška a program ukončen již v daném okamžiku.
 
 ## Testování programu
-Testování probíhalo po celou dobu vývoje programu. Zahrnovalo jak kontrolu úniků paměti a původce neoprávněního přístupu do ní (pomocí funkce `valgrind`), tak kontrolu správnosti výpisu informací paketů primárně pomocí porovnání výstupu s informacemi v programu [Wireshark](https://www.wireshark.org/) nebo kontrolu vstupních argumentů. Testování bylo prováděno v systému WSL (Windows Subsystem for Linux) s distribucí Ubuntu 22.04.3 LTS.
+Testování probíhalo po celou dobu vývoje programu. Zahrnovalo jak kontrolu úniků paměti a původce neoprávněního přístupu do ní (pomocí funkce `valgrind`), tak kontrolu správnosti výpisu informací paketů primárně pomocí porovnání výstupu s informacemi v programu [Wireshark](https://www.wireshark.org/). V neposlední řadě došlo na kontrolu správnosti argumentů. Testování bylo prováděno v systému WSL (Windows Subsystem for Linux) s distribucí Ubuntu 22.04.3 LTS.
 
 ### Testování zpracování argumentů
 Při testování argumentů byl důraz primárně na vytvořený řetězec následně vkládaný do filtru (čímž dojde ke kontroly většiny argumentů) a kontrola validního formátu čísel popřípadě kombinace argumentů.
@@ -149,8 +149,7 @@ Při testování argumentů byl důraz primárně na vytvořený řetězec násl
     ```sh
     filter arguments: ((tcp or udp) and port 23) or arp or icmp6 and (ip6[40] == 128 or ip6[40] == 129) or igmp
     ```
-    Je tedy vidět, že ve filtru jsou správně přidané argumenty zadané ze vstupu, které reflektují daný protokol i konkrétní specifický typ, konkrétně protokoly `TCP` a `UDP` v logické spojce `OR` a zároveň port 23, který může být odchozí i zdrojový. Mezi zbytkem argumentů opět platí logická spojka `OR` a u icmp6 lze ještě vidět filtrování pro konkrétní typy `ECHO REQUEST` a `ECHO REPLY`. Program následně bylo nutné ukončit pomocí CTRL+C, jelikož hledal pakety shodující se s daným filtrem.
-
+    Je tedy vidět, že ve filtru jsou správně přidané argumenty zadané ze vstupu, které reflektují daný protokol i konkrétní specifický typ, konkrétně protokoly `TCP` a `UDP` v logické spojce `OR` a zároveň port 23, který může být odchozí i zdrojový. Mezi zbytkem argumentů opět platí logická spojka `OR` a u icmp6 lze ještě vidět filtrování pro konkrétní typy `ECHO REQUEST` a `ECHO REPLY`. Program následně bylo možné ukončit pomocí CTRL+C, jelikož hledal pakety shodující se s daným filtrem.
 
 2. Spuštění programu bez argumentů
    
@@ -291,11 +290,11 @@ Cílem tohoto testu bylo zkontrolovat nepřítomnost úniků paměti při spušt
   Výpis ukazuje korektní dealokaci paměti i po několika odchycených paketech.
 
 ### Testování odchycení a výpisu informací jednotlivých paketů
-Zachytávání jednotlivých paketů probíhalo buď na výchozím rozhraní WSL `eth0`, kde síťový analyzátor vypsal informace o paketu prakticky vždy (na rozhraní se stále něco děje a protokolem je vždy `TCP` nebo `UDP`) nebo na rozhraní `lo`, tedy loopback rozhraní. Výstup programu byl následně vždy porovnán s programem Wireshark, který rovněž poskytuje užitečné informace o odchyceném paketu a sloužil tak jako kontrola správnosti detekce typu paketu a kontrole správných výpisů.
+Zachytávání jednotlivých paketů probíhalo buď na výchozím rozhraní WSL `eth0`, kde síťový analyzátor vypsal informace o paketu prakticky vždy (na rozhraní se stále něco děje a protokolem je prakticky vždy `TCP` nebo `UDP`) nebo na rozhraní `lo`, tedy loopback rozhraní. Výstup programu byl následně vždy porovnán s programem Wireshark, který rovněž poskytuje užitečné informace o odchyceném paketu a sloužil tak jako kontrola správnosti detekce typu paketu a kontrole správných výpisů.
 
 1. Testování paketů protokolu TCP/UDP
 
-   Cílem bylo otestovat, zdali síťový analyzátor správně zachytí TCP nebo UDP pakety (kvůli jejich stejnému výpisu jsou spojeny v 1 test) a vytiskne na standardní výstup správné informace. Jak bylo avizováno v odstavci výše, pakety obou typů byly zachytávány na rozhraní `eth0`, kde byly odchyceny automaticky (tedy jejich existence byla v režii OS).
+   Cílem bylo otestovat, zdali síťový analyzátor správně zachytí TCP nebo UDP pakety (kvůli jejich stejné informační hodnotě výpisu jsou spojeny v 1 test) a vytiskne na standardní výstup správné informace. Jak bylo avizováno v odstavci výše, pakety obou typů byly zachytávány na rozhraní `eth0`, kde byly odchyceny automaticky bez nutnosti je manuálně vytvořit a poslat.
 
     Program byl pro testování spuštěn tímto příkazem:
     ```sh
@@ -438,7 +437,7 @@ Zachytávání jednotlivých paketů probíhalo buď na výchozím rozhraní WSL
 
     *NDP*
 
-    V druhém testu bylo cílem otestovat pakety typu `ndp`, které patří pod icmpv6. Zachytávání tentokrát probíhalo na rozhraní `eth0`. Pro poslání paketů na toto rozhraní použit python skript využivající knihovnu [Scapy](https://scapy.net/). Tento skript poslal paket NDP typu 135, tedy `neighbor solicitation` na multicastovou adresu `ff02::1:ff00:1` používanou právě pro zprávy tohoto typu a byl poslán ze zdrojové link local adresy rozhraní `eth0`.
+    V druhém testu bylo cílem otestovat pakety typu `ndp`, které patří pod icmpv6. Zachytávání tentokrát probíhalo na rozhraní `eth0`. Pro poslání paketů na toto rozhraní byl použit python skript využivající knihovnu [Scapy](https://scapy.net/). Tento skript poslal paket NDP typu 135, tedy `neighbor solicitation` na multicastovou adresu `ff02::1:ff00:1` používanou právě pro zprávy tohoto typu a byl poslán ze zdrojové link local adresy rozhraní `eth0` (zdrojová MAC adresa je rovněž tohoto rozhraní).
 
     Program byl pro testování spuštěn tímto příkazem:
     ```sh
@@ -468,11 +467,40 @@ Zachytávání jednotlivých paketů probíhalo buď na výchozím rozhraní WSL
    Screenshot odchyceného paketu z programu Wireshark:
    [Paket zachycený ve Wiresharku](image/Wireshark_NDP.jpg)
 
-    Na snímku je sice paketů spousta nicméně ten s více informaci odpovídá stejnému paketu, který zachytil síťový analyzátor se správným typem. 
+    Na snímku je sice paketů více nicméně ten rozkliknutý s informacemi dole odpovídá stejnému paketu, který zachytil síťový analyzátor se správným typem. 
 
     *MLD*
 
-    Na MLD se mi nepovedlo správně sprovoznit skript a je tedy neotestováno.
+    V posledním testu bylo cílem otestovat pakety typu `mld`, které patří pod icmpv6. Zachytávání probíhalo na rozhraní `eth0`. Pro poslání paketů na toto rozhraní byl opět použit python skript, který na broadcast adresu poslal paket typu `MLD Query`.
+
+    Program byl pro testování spuštěn tímto příkazem:
+    ```sh
+    sudo ./ipk-sniffer -i eth0 --mld
+    ```
+    Výpis programu:
+      ```sh
+      timestamp: 2024-04-22T20:09:27.777+02:00
+      src MAC: 00:15:5d:a5:ba:2b
+      dst MAC: ff:ff:ff:ff:ff:ff
+      frame length: 78
+      src IP: fe80::215:5dff:fea5:ba2b
+      dst IP: fe80::215:5dff:fea5:ba2b
+      packet type: ipv6 ICMP
+      icmp6 type: [MLD] Listener query
+      icmp6 code: 0
+      icmp6 checksum: 53031
+
+      0x0000: ff ff ff ff ff ff 00 15 5d a5 ba 2b 86 dd 60 00  ........ ]..+..`.
+      0x0010: 00 00 00 18 3a 01 fe 80 00 00 00 00 00 00 02 15  ....:... ........
+      0x0020: 5d ff fe a5 ba 2b fe 80 00 00 00 00 00 00 02 15  ]....+.. ........
+      0x0030: 5d ff fe a5 ba 2b 82 00 27 cf 27 10 00 00 00 00  ]....+.. '.'.....
+      0x0040: 00 00 00 00 00 00 00 00 00 00 00 00 00 00        ........ ......
+      ```
+
+   Screenshot odchyceného paketu z programu Wireshark:
+   [Paket zachycený ve Wiresharku](image/Wireshark_MLD.jpg)
+
+   Wireshark se opět shoduje s výstupem síťového analyzátoru.
 
 4. Testování paketů protokolu ARP
 
@@ -541,17 +569,25 @@ Síťový analyzátor není dokonalý a obsahuje několik věcí, které by mohl
 * Síťový analyzátor umí pracovat pouze s ethernetovými rámci
 * Výpisy by mohly být barevně laděné (lepší přehlednost mezi různými informacemi)
 * K výpisům by mohl být přidán celkový počet zpracovaných paketů
-* Otestování MLD paketů
 
 ## Zdroje
-- [RFC3339] KLYNE, G. Date and Time on the Internet: Timestamps. [online]. Říjen 2002. [cit. 2024-04-22]. DOI: 10.17487/RFC3339. Dostupné z: https://datatracker.ietf.org/doc/html/rfc3339
-- [RFC5952] KAWAMURA, Seiichi a Masanobu KAWASHIMA. A Recommendation for IPv6 Address Text Representation. [online]. Srpen 2010. [cit. 2024-04-22]. DOI: 10.17487/RFC5952. Dostupné z: https://datatracker.ietf.org/doc/html/rfc5952
-- OSI model. In: *Wikipedia: the free encyclopedia*. [online]. 19. 4. 2024. [cit. 2024-04-22]. Dostupné z: https://en.wikipedia.org/wiki/OSI_model
-- ZAORAL, K. Přenos informací (paketů). [online]. [cit. 2024-04-22]. Dostupné z: https://www.itnetwork.cz/site/zaklady/site-prenos-informaci-paketu
-- CARSTENS, Tim. Programming with PCAP. [online]. [cit. 2024-04-22]. Dostupné z: https://www.tcpdump.org/pcap.html 
-- Pcap(3PCAP) manual page. [online].  4. 3. 2024. [cit. 2024-04-22]. Dostupné z: https://www.tcpdump.org/manpages/pcap.3pcap.html
-- Transmission Control Protocol. In: *Wikipedia: the free encyclopedia*. [online]. 31. 1. 2024. [cit. 2024-04-22]. Dostupné z: https://cs.wikipedia.org/wiki/Transmission_Control_Protocol
-- User Datagram Protocol. In: *Wikipedia: the free encyclopedia*. [online]. 18. 11. 2023. [cit. 2024-04-22]. Dostupné z: https://cs.wikipedia.org/wiki/User_Datagram_Protocol
-- Internet control message protocol. In: *Wikipedia: the free encyclopedia*. [online]. 9. 4. 2024. [cit. 2024-04-22]. Dostupné z: https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
-- CLOUDFARE. What is IGMP?. [online]. [cit. 2024-04-22]. Dostupné z: https://www.cloudflare.com/learning/network-layer/what-is-igmp/
-- FORTINET. What is Address Resolution Procol (ARP)?. [online]. [cit. 2024-04-22]. Dostupné z: https://www.fortinet.com/resources/cyberglossary/what-is-arp
+[1] [RFC3339] KLYNE, G. Date and Time on the Internet: Timestamps. [online]. Říjen 2002. [cit. 2024-04-22]. DOI: 10.17487/RFC3339. Dostupné z: https://datatracker.ietf.org/doc/html/rfc3339
+
+[2] [RFC5952] KAWAMURA, Seiichi a Masanobu KAWASHIMA. A Recommendation for IPv6 Address Text Representation. [online]. Srpen 2010. [cit. 2024-04-22]. DOI: 10.17487/RFC5952. Dostupné z: https://datatracker.ietf.org/doc/html/rfc5952
+[3] OSI model. In: *Wikipedia: the free encyclopedia*. [online]. 19. 4. 2024. [cit. 2024-04-22]. Dostupné z: https://en.wikipedia.org/wiki/OSI_model
+
+[4] ZAORAL, K. Přenos informací (paketů). [online]. [cit. 2024-04-22]. Dostupné z: https://www.itnetwork.cz/site/zaklady/site-prenos-informaci-paketu
+
+[5] CARSTENS, Tim. Programming with PCAP. [online]. [cit. 2024-04-22]. Dostupné z: https://www.tcpdump.org/pcap.html 
+
+[6] Pcap(3PCAP) manual page. [online].  4. 3. 2024. [cit. 2024-04-22]. Dostupné z: https://www.tcpdump.org/manpages/pcap.3pcap.html
+
+[7] Transmission Control Protocol. In: *Wikipedia: the free encyclopedia*. [online]. 31. 1. 2024. [cit. 2024-04-22]. Dostupné z: https://cs.wikipedia.org/wiki/Transmission_Control_Protocol
+
+[8] User Datagram Protocol. In: *Wikipedia: the free encyclopedia*. [online]. 18. 11. 2023. [cit. 2024-04-22]. Dostupné z: https://cs.wikipedia.org/wiki/User_Datagram_Protocol
+
+[9] Internet control message protocol. In: *Wikipedia: the free encyclopedia*. [online]. 9. 4. 2024. [cit. 2024-04-22]. Dostupné z: https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
+
+[10] CLOUDFARE. What is IGMP?. [online]. [cit. 2024-04-22]. Dostupné z: https://www.cloudflare.com/learning/network-layer/what-is-igmp/
+
+[11] FORTINET. What is Address Resolution Procol (ARP)?. [online]. [cit. 2024-04-22]. Dostupné z: https://www.fortinet.com/resources/cyberglossary/what-is-arp
